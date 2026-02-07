@@ -1,0 +1,729 @@
+openapi: 3.0.3
+info:
+  title: ikctl - API de Instalación de Aplicaciones Remotas
+  description: API REST para gestionar servidores remotos e instalar aplicaciones mediante SSH de forma asíncrona
+  version: 1.0.0
+  contact:
+    name: 3ozone
+servers:
+  - url: http://localhost:8000
+    description: Servidor de desarrollo
+  - url: https://api.ikctl.example.com
+    description: Servidor de producción
+
+tags:
+  - name: Usuarios
+    description: Gestión de usuarios y autenticación
+  - name: Servidores
+    description: Gestión de servidores remotos
+  - name: Operaciones
+    description: Operaciones sobre servidores (conectividad, instalaciones)
+
+paths:
+  /register:
+    post:
+      tags:
+        - Usuarios
+      summary: Registro de usuario
+      description: Crea una nueva cuenta de usuario
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+      responses:
+        '201':
+          description: Usuario creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: El email ya está registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /login:
+    post:
+      tags:
+        - Usuarios
+      summary: Autenticación de usuario
+      description: Inicia sesión y devuelve un token JWT
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Autenticación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/me:
+    get:
+      tags:
+        - Usuarios
+      summary: Obtener perfil del usuario
+      description: Devuelve la información del usuario autenticado
+      operationId: getUserProfile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Perfil del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Usuarios
+      summary: Actualizar nombre del usuario
+      description: Actualiza el nombre del usuario autenticado
+      operationId: updateUserName
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Usuario actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/me/password:
+    put:
+      tags:
+        - Usuarios
+      summary: Cambiar contraseña
+      description: Actualiza la contraseña del usuario autenticado
+      operationId: updateUserPassword
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordUpdate'
+      responses:
+        '200':
+          description: Contraseña actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          description: No autenticado o contraseña actual incorrecta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /servers:
+    get:
+      tags:
+        - Servidores
+      summary: Listar servidores
+      description: Devuelve todos los servidores del usuario autenticado
+      operationId: listServers
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de servidores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServerResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Servidores
+      summary: Añadir servidor
+      description: Registra un nuevo servidor remoto
+      operationId: createServer
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerCreate'
+      responses:
+        '201':
+          description: Servidor creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerResponse'
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /servers/{server_id}:
+    get:
+      tags:
+        - Servidores
+      summary: Obtener detalles de servidor
+      description: Devuelve la información de un servidor específico
+      operationId: getServer
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: server_id
+          in: path
+          required: true
+          description: ID del servidor
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detalles del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Servidor no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Servidores
+      summary: Actualizar servidor
+      description: Actualiza la configuración de un servidor (IP, credenciales, puerto, etc.)
+      operationId: updateServer
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: server_id
+          in: path
+          required: true
+          description: ID del servidor
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerUpdate'
+      responses:
+        '200':
+          description: Servidor actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerResponse'
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Servidor no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Servidores
+      summary: Eliminar servidor
+      description: Elimina un servidor del sistema
+      operationId: deleteServer
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: server_id
+          in: path
+          required: true
+          description: ID del servidor
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Servidor eliminado exitosamente
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Servidor no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /servers/{server_id}/test-connection:
+    post:
+      tags:
+        - Operaciones
+      summary: Probar conectividad SSH
+      description: Verifica la conectividad SSH a un servidor
+      operationId: testConnection
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: server_id
+          in: path
+          required: true
+          description: ID del servidor
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Test de conexión completado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTestResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Servidor no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /servers/{server_id}/install:
+    post:
+      tags:
+        - Operaciones
+      summary: Lanzar instalación de aplicación
+      description: Inicia una instalación asíncrona de aplicación en el servidor remoto
+      operationId: installApplication
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: server_id
+          in: path
+          required: true
+          description: ID del servidor
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstallRequest'
+      responses:
+        '202':
+          description: Instalación iniciada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Servidor no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tasks/{task_id}:
+    get:
+      tags:
+        - Operaciones
+      summary: Consultar estado de tarea
+      description: Obtiene el estado y resultado de una tarea asíncrona
+      operationId: getTaskStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          description: ID de la tarea
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Estado de la tarea
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tarea no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserRegister:
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          example: Juan Pérez
+        email:
+          type: string
+          format: email
+          example: juan@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: secretpassword123
+
+    UserLogin:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: juan@example.com
+        password:
+          type: string
+          format: password
+          example: secretpassword123
+
+    UserUpdate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: Juan Antonio Pérez
+
+    PasswordUpdate:
+      type: object
+      required:
+        - current_password
+        - new_password
+      properties:
+        current_password:
+          type: string
+          format: password
+          example: oldpassword123
+        new_password:
+          type: string
+          format: password
+          minLength: 8
+          example: newpassword456
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Juan Pérez
+        email:
+          type: string
+          format: email
+          example: juan@example.com
+        created_at:
+          type: string
+          format: date-time
+          example: 2026-02-07T10:00:00Z
+        updated_at:
+          type: string
+          format: date-time
+          example: 2026-02-07T10:00:00Z
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          example: bearer
+
+    ServerCreate:
+      type: object
+      required:
+        - name
+        - host
+        - username
+        - auth_type
+      properties:
+        name:
+          type: string
+          example: Servidor Producción
+        host:
+          type: string
+          example: 192.168.1.100
+        port:
+          type: integer
+          default: 22
+          example: 22
+        username:
+          type: string
+          example: root
+        auth_type:
+          type: string
+          enum: [password, ssh_key]
+          example: ssh_key
+        password:
+          type: string
+          format: password
+          description: Requerido si auth_type es password
+          example: serverpass123
+        ssh_key:
+          type: string
+          description: Requerido si auth_type es ssh_key
+          example: "-----BEGIN OPENSSH PRIVATE KEY-----\n..."
+
+    ServerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Servidor Producción Actualizado
+        host:
+          type: string
+          example: 192.168.1.101
+        port:
+          type: integer
+          example: 2222
+        username:
+          type: string
+          example: admin
+        auth_type:
+          type: string
+          enum: [password, ssh_key]
+          example: ssh_key
+        password:
+          type: string
+          format: password
+          example: newserverpass456
+        ssh_key:
+          type: string
+          example: "-----BEGIN OPENSSH PRIVATE KEY-----\n..."
+
+    ServerResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Servidor Producción
+        host:
+          type: string
+          example: 192.168.1.100
+        port:
+          type: integer
+          example: 22
+        username:
+          type: string
+          example: root
+        auth_type:
+          type: string
+          enum: [password, ssh_key]
+          example: ssh_key
+        created_at:
+          type: string
+          format: date-time
+          example: 2026-02-07T10:00:00Z
+
+    ConnectionTestResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Conexión SSH exitosa
+        details:
+          type: object
+          properties:
+            hostname:
+              type: string
+              example: prod-server-01
+            uptime:
+              type: string
+              example: 15 days
+
+    InstallRequest:
+      type: object
+      required:
+        - application
+      properties:
+        application:
+          type: string
+          example: nginx
+        version:
+          type: string
+          example: latest
+        options:
+          type: object
+          additionalProperties: true
+          example:
+            port: 80
+            enable: true
+
+    TaskResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        server_id:
+          type: integer
+          example: 1
+        type:
+          type: string
+          example: install
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+          example: running
+        result:
+          type: object
+          nullable: true
+          additionalProperties: true
+          example:
+            output: Installation completed successfully
+        created_at:
+          type: string
+          format: date-time
+          example: 2026-02-07T10:00:00Z
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+
+    Message:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Operación exitosa
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: Error en la operación
