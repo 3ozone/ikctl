@@ -26,10 +26,57 @@ El servidor estará disponible en: <http://localhost:8000>
 
 ## Endpoints disponibles
 
-- `GET /` - Hello World
-- `GET /health` - Health check
+### Documentación
+
 - `GET /docs` - Documentación Swagger UI (automática)
 - `GET /redoc` - Documentación ReDoc (automática)
+
+### Health Check
+
+- `GET /` - Hello World
+- `GET /health` - Health check
+
+### Autenticación (v1)
+
+- `POST /api/v1/register` - Registrar nuevo usuario
+- `POST /api/v1/login` - Autenticar usuario (obtiene JWT token)
+- `GET /api/v1/users/me` - Obtener perfil del usuario autenticado 🔒
+- `PUT /api/v1/users/me` - Actualizar nombre del usuario 🔒
+- `PUT /api/v1/users/me/password` - Cambiar contraseña 🔒
+
+🔒 = Requiere autenticación JWT
+
+### Seguridad OAuth2/JWT
+
+La API usa OAuth2 con JWT tokens para autenticación:
+
+1. **Registro**: `POST /api/v1/register` con nombre, email y contraseña
+2. **Login**: `POST /api/v1/login` retorna `access_token` (JWT)
+3. **Uso**: Incluir token en header: `Authorization: Bearer {token}`
+
+**Configuración JWT:**
+- Algoritmo: HS256
+- Expiración: 30 minutos
+- Secret Key: Configurable vía variable de entorno
+
+**Ejemplo de uso:**
+
+```bash
+# 1. Registrar usuario
+curl -X POST http://localhost:8000/api/v1/register \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "email": "john@example.com", "password": "securepass123"}'
+
+# 2. Login
+curl -X POST http://localhost:8000/api/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "john@example.com", "password": "securepass123"}'
+# Respuesta: {"access_token": "eyJ0eXAi...", "token_type": "bearer"}
+
+# 3. Acceder a endpoint protegido
+curl http://localhost:8000/api/v1/users/me \
+  -H "Authorization: Bearer eyJ0eXAi..."
+```
 
 ## Tests
 
@@ -37,7 +84,7 @@ Tests implementados siguiendo TDD (Test-Driven Development) basados en la especi
 
 ### Estructura
 
-```
+```bash
 backend/tests/
 ├── __init__.py
 ├── conftest.py           # Configuración compartida y fixtures
@@ -72,36 +119,35 @@ pytest -v -s
 
 ### Cobertura de tests
 
-#### Autenticación y Usuarios (`test_auth.py`)
+#### Autenticación y Usuarios (`test_auth.py`) ✅ **12/12 COMPLETO**
 
-- ✅ Registro de usuario
-- ✅ Login y obtención de JWT
-- ✅ Obtener perfil de usuario
-- ✅ Actualizar nombre de usuario
-- ✅ Cambiar contraseña
-- ✅ Validación de datos inválidos
-- ✅ Manejo de duplicados
-- ✅ Autenticación/autorización
+- ✅ Registro de usuario (success, invalid email, duplicate)
+- ✅ Login y obtención de JWT (success, invalid credentials)
+- ✅ Obtener perfil de usuario (success, unauthorized)
+- ✅ Actualizar nombre de usuario (success, unauthorized)
+- ✅ Cambiar contraseña (success, wrong password, unauthorized)
+- ✅ Validación OAuth2/JWT en endpoints protegidos
+- ✅ Manejo de errores 401 Unauthorized
 
-#### Servidores (`test_servers.py`)
+#### Servidores (`test_servers.py`) ⏳ **PENDIENTE**
 
-- ✅ Crear servidor (password y SSH key)
-- ✅ Listar servidores del usuario
-- ✅ Obtener detalles de servidor
-- ✅ Actualizar configuración de servidor
-- ✅ Eliminar servidor
-- ✅ Validación de datos
-- ✅ Manejo de errores 404
-- ✅ Control de acceso
+- ⏳ Crear servidor (password y SSH key)
+- ⏳ Listar servidores del usuario
+- ⏳ Obtener detalles de servidor
+- ⏳ Actualizar configuración de servidor
+- ⏳ Eliminar servidor
+- ⏳ Validación de datos
+- ⏳ Manejo de errores 404
+- ⏳ Control de acceso OAuth2
 
-#### Operaciones (`test_operations.py`)
+#### Operaciones (`test_operations.py`) ⏳ **PENDIENTE**
 
-- ✅ Test de conectividad SSH
-- ✅ Instalación de aplicaciones (asíncrona)
-- ✅ Consulta de estado de tareas
-- ✅ Ciclo de vida completo de tareas
-- ✅ Manejo de errores
-- ✅ Autenticación requerida
+- ⏳ Test de conectividad SSH
+- ⏳ Instalación de aplicaciones (asíncrona)
+- ⏳ Consulta de estado de tareas
+- ⏳ Ciclo de vida completo de tareas
+- ⏳ Manejo de errores
+- ⏳ Autenticación OAuth2 requerida
 
 ### Próximos pasos TDD
 

@@ -1,74 +1,173 @@
 openapi: 3.0.3
 info:
-  title: ikctl - API de Instalación de Aplicaciones Remotas
-  description: API REST para gestionar servidores remotos e instalar aplicaciones mediante SSH de forma asíncrona
+  title: ikctl API
+  description: API REST para gestión de instalaciones remotas de aplicaciones vía SSH
   version: 1.0.0
   contact:
-    name: 3ozone
+    name: ikctl Team
+    email: support@ikctl.com
+
 servers:
   - url: http://localhost:8000
-    description: Servidor de desarrollo
-  - url: https://api.ikctl.example.com
-    description: Servidor de producción
+    description: Desarrollo local
+  - url: https://api.ikctl.com
+    description: Producción
 
 tags:
-  - name: Usuarios
-    description: Gestión de usuarios y autenticación
-  - name: Servidores
-    description: Gestión de servidores remotos
-  - name: Operaciones
-    description: Operaciones sobre servidores (conectividad, instalaciones)
+  - name: auth
+    description: Autenticación y registro
+  - name: users
+    description: Gestión de perfil de usuario
+  - name: password
+    description: Recuperación de contraseña
+  - name: 2fa
+    description: Autenticación de dos factores
+
+security:
+  - BearerAuth: []
 
 paths:
-  /register:
+  /api/v1/register:
     post:
-      tags:
-        - Usuarios
-      summary: Registro de usuario
-      description: Crea una nueva cuenta de usuario
-      operationId: registerUser
+      tags: [auth]
+      summary: Registro de nuevo usuario
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserRegister'
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                  example: "Juan Pérez"
+                email:
+                  type: string
+                  format: email
+                  example: "juan@example.com"
+                password:
+                  type: string
+                  format: password
+                  example: "SecurePass123!"
+                  description: "Mínimo 8 caracteres, 1 mayúscula, 1 minúscula, 1 número"
       responses:
         '201':
           description: Usuario creado exitosamente
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Usuario registrado. Verifica tu email."
+                  user_id:
+                    type: string
+                    example: "user_123abc"
         '400':
-          description: Datos inválidos
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '409':
-          description: El email ya está registrado
+          description: Email ya registrado
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /login:
+  /api/v1/verify-email:
     post:
-      tags:
-        - Usuarios
-      summary: Autenticación de usuario
-      description: Inicia sesión y devuelve un token JWT
-      operationId: loginUser
+      tags: [auth]
+      summary: Verificar email con token
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserLogin'
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
       responses:
         '200':
-          description: Autenticación exitosa
+          description: Email verificado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Email verificado correctamente"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Token inválido o expirado
+
+  /api/v1/resend-verification:
+    post:
+      tags: [auth]
+      summary: Reenviar email de verificación
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "juan@example.com"
+      responses:
+        '200':
+          description: Email reenviado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Email de verificación reenviado"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/login:
+    post:
+      tags: [auth]
+      summary: Login con email y contraseña
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  description: Email del usuario
+                  example: "juan@example.com"
+                password:
+                  type: string
+                  format: password
+                  example: "SecurePass123!"
+      responses:
+        '200':
+          description: Login exitoso
+          headers:
+            Set-Cookie:
+              description: Refresh token en HttpOnly cookie
+              schema:
+                type: string
+                example: "refresh_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/api/v1"
           content:
             application/json:
               schema:
@@ -79,379 +178,397 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '403':
+          description: Usuario requiere verificación de email o 2FA
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Se requiere verificación de email"
+                  requires_2fa:
+                    type: boolean
+                    example: false
+                  temp_token:
+                    type: string
+                    description: Token temporal para completar 2FA
 
-  /users/me:
+  /api/v1/login/github:
+    post:
+      tags: [auth]
+      summary: Iniciar OAuth con GitHub
+      security: []
+      responses:
+        '302':
+          description: Redirección a GitHub OAuth
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "https://github.com/login/oauth/authorize?client_id=..."
+
+  /api/v1/login/github/callback:
     get:
-      tags:
-        - Usuarios
-      summary: Obtener perfil del usuario
-      description: Devuelve la información del usuario autenticado
-      operationId: getUserProfile
-      security:
-        - BearerAuth: []
+      tags: [auth]
+      summary: Callback OAuth de GitHub
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Login exitoso con GitHub
+          headers:
+            Set-Cookie:
+              description: Refresh token en HttpOnly cookie
+              schema:
+                type: string
+                example: "refresh_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/api/v1"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/login/2fa:
+    post:
+      tags: [2fa]
+      summary: Completar login con código 2FA
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [temp_token, code]
+              properties:
+                temp_token:
+                  type: string
+                  description: Token temporal recibido tras login básico
+                code:
+                  type: string
+                  example: "123456"
+                  description: Código TOTP de 6 dígitos
+      responses:
+        '200':
+          description: Login 2FA exitoso
+          headers:
+            Set-Cookie:
+              description: Refresh token en HttpOnly cookie
+              schema:
+                type: string
+                example: "refresh_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/api/v1"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/refresh:
+    post:
+      tags: [auth]
+      summary: Refrescar access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Token refrescado exitosamente
+          headers:
+            Set-Cookie:
+              description: Nuevo refresh token en HttpOnly cookie
+              schema:
+                type: string
+                example: "refresh_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/api/v1"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/logout:
+    post:
+      tags: [auth]
+      summary: Cerrar sesión (invalidar refresh token)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Logout exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Sesión cerrada correctamente"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/password/forgot:
+    post:
+      tags: [password]
+      summary: Solicitar reset de contraseña
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "juan@example.com"
+      responses:
+        '200':
+          description: Email enviado (respuesta genérica por seguridad)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Si el email existe, recibirás instrucciones de recuperación"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/password/reset:
+    post:
+      tags: [password]
+      summary: Restablecer contraseña con token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, new_password]
+              properties:
+                token:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                new_password:
+                  type: string
+                  format: password
+                  example: "NewSecurePass123!"
+      responses:
+        '200':
+          description: Contraseña restablecida exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Contraseña actualizada correctamente"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Token inválido o expirado
+
+  /api/v1/users/me:
+    get:
+      tags: [users]
+      summary: Obtener perfil del usuario autenticado
       responses:
         '200':
           description: Perfil del usuario
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/UserProfile'
         '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
 
     put:
-      tags:
-        - Usuarios
+      tags: [users]
       summary: Actualizar nombre del usuario
-      description: Actualiza el nombre del usuario autenticado
-      operationId: updateUserName
-      security:
-        - BearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserUpdate'
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  example: "Juan Carlos Pérez"
       responses:
         '200':
-          description: Usuario actualizado exitosamente
+          description: Perfil actualizado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
 
-  /users/me/password:
+  /api/v1/users/me/password:
     put:
-      tags:
-        - Usuarios
-      summary: Cambiar contraseña
-      description: Actualiza la contraseña del usuario autenticado
-      operationId: updateUserPassword
-      security:
-        - BearerAuth: []
+      tags: [users]
+      summary: Cambiar contraseña del usuario
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PasswordUpdate'
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password:
+                  type: string
+                  format: password
+                  example: "OldPass123!"
+                new_password:
+                  type: string
+                  format: password
+                  example: "NewSecurePass123!"
       responses:
         '200':
-          description: Contraseña actualizada exitosamente
+          description: Contraseña actualizada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Message'
-        '401':
-          description: No autenticado o contraseña actual incorrecta
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /servers:
-    get:
-      tags:
-        - Servidores
-      summary: Listar servidores
-      description: Devuelve todos los servidores del usuario autenticado
-      operationId: listServers
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Lista de servidores
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ServerResponse'
-        '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-    post:
-      tags:
-        - Servidores
-      summary: Añadir servidor
-      description: Registra un nuevo servidor remoto
-      operationId: createServer
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ServerCreate'
-      responses:
-        '201':
-          description: Servidor creado exitosamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Contraseña actualizada correctamente"
         '400':
-          description: Datos inválidos
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
 
-  /servers/{server_id}:
-    get:
-      tags:
-        - Servidores
-      summary: Obtener detalles de servidor
-      description: Devuelve la información de un servidor específico
-      operationId: getServer
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: server_id
-          in: path
-          required: true
-          description: ID del servidor
-          schema:
-            type: integer
+  /api/v1/users/me/2fa/enable:
+    post:
+      tags: [2fa]
+      summary: Activar 2FA (genera QR code)
       responses:
         '200':
-          description: Detalles del servidor
+          description: 2FA iniciado, requiere verificación
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerResponse'
+                type: object
+                properties:
+                  qr_code:
+                    type: string
+                    format: uri
+                    example: "data:image/png;base64,iVBORw0KGgoAAAANS..."
+                  secret:
+                    type: string
+                    example: "AB3DEFGHIJKLMNOP"
+                  message:
+                    type: string
+                    example: "Escanea el QR y verifica el código"
         '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Servidor no encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
 
-    put:
-      tags:
-        - Servidores
-      summary: Actualizar servidor
-      description: Actualiza la configuración de un servidor (IP, credenciales, puerto, etc.)
-      operationId: updateServer
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: server_id
-          in: path
-          required: true
-          description: ID del servidor
-          schema:
-            type: integer
+  /api/v1/users/me/2fa/verify:
+    post:
+      tags: [2fa]
+      summary: Verificar código 2FA para activar
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ServerUpdate'
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  example: "123456"
       responses:
         '200':
-          description: Servidor actualizado exitosamente
+          description: 2FA activado exitosamente
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "2FA activado correctamente"
+                  backup_codes:
+                    type: array
+                    items:
+                      type: string
+                    example: ["12345678", "87654321"]
         '400':
-          description: Datos inválidos
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Servidor no encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
 
-    delete:
-      tags:
-        - Servidores
-      summary: Eliminar servidor
-      description: Elimina un servidor del sistema
-      operationId: deleteServer
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: server_id
-          in: path
-          required: true
-          description: ID del servidor
-          schema:
-            type: integer
-      responses:
-        '204':
-          description: Servidor eliminado exitosamente
-        '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Servidor no encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /servers/{server_id}/test-connection:
+  /api/v1/users/me/2fa/disable:
     post:
-      tags:
-        - Operaciones
-      summary: Probar conectividad SSH
-      description: Verifica la conectividad SSH a un servidor
-      operationId: testConnection
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: server_id
-          in: path
-          required: true
-          description: ID del servidor
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Test de conexión completado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConnectionTestResponse'
-        '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Servidor no encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /servers/{server_id}/install:
-    post:
-      tags:
-        - Operaciones
-      summary: Lanzar instalación de aplicación
-      description: Inicia una instalación asíncrona de aplicación en el servidor remoto
-      operationId: installApplication
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: server_id
-          in: path
-          required: true
-          description: ID del servidor
-          schema:
-            type: integer
+      tags: [2fa]
+      summary: Desactivar 2FA
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InstallRequest'
-      responses:
-        '202':
-          description: Instalación iniciada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskResponse'
-        '400':
-          description: Datos inválidos
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Servidor no encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /tasks/{task_id}:
-    get:
-      tags:
-        - Operaciones
-      summary: Consultar estado de tarea
-      description: Obtiene el estado y resultado de una tarea asíncrona
-      operationId: getTaskStatus
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: task_id
-          in: path
-          required: true
-          description: ID de la tarea
-          schema:
-            type: integer
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  format: password
       responses:
         '200':
-          description: Estado de la tarea
+          description: 2FA desactivado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "2FA desactivado correctamente"
         '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Tarea no encontrada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
 
 components:
   securitySchemes:
@@ -461,269 +578,78 @@ components:
       bearerFormat: JWT
 
   schemas:
-    UserRegister:
-      type: object
-      required:
-        - name
-        - email
-        - password
-      properties:
-        name:
-          type: string
-          example: Juan Pérez
-        email:
-          type: string
-          format: email
-          example: juan@example.com
-        password:
-          type: string
-          format: password
-          minLength: 8
-          example: secretpassword123
-
-    UserLogin:
-      type: object
-      required:
-        - email
-        - password
-      properties:
-        email:
-          type: string
-          format: email
-          example: juan@example.com
-        password:
-          type: string
-          format: password
-          example: secretpassword123
-
-    UserUpdate:
-      type: object
-      required:
-        - name
-      properties:
-        name:
-          type: string
-          example: Juan Antonio Pérez
-
-    PasswordUpdate:
-      type: object
-      required:
-        - current_password
-        - new_password
-      properties:
-        current_password:
-          type: string
-          format: password
-          example: oldpassword123
-        new_password:
-          type: string
-          format: password
-          minLength: 8
-          example: newpassword456
-
-    UserResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-          example: 1
-        name:
-          type: string
-          example: Juan Pérez
-        email:
-          type: string
-          format: email
-          example: juan@example.com
-        created_at:
-          type: string
-          format: date-time
-          example: 2026-02-07T10:00:00Z
-        updated_at:
-          type: string
-          format: date-time
-          example: 2026-02-07T10:00:00Z
-
     TokenResponse:
       type: object
       properties:
         access_token:
           type: string
-          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refresh_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
         token_type:
           type: string
-          example: bearer
-
-    ServerCreate:
-      type: object
-      required:
-        - name
-        - host
-        - username
-        - auth_type
-      properties:
-        name:
-          type: string
-          example: Servidor Producción
-        host:
-          type: string
-          example: 192.168.1.100
-        port:
+          example: "bearer"
+        expires_in:
           type: integer
-          default: 22
-          example: 22
-        username:
-          type: string
-          example: root
-        auth_type:
-          type: string
-          enum: [password, ssh_key]
-          example: ssh_key
-        password:
-          type: string
-          format: password
-          description: Requerido si auth_type es password
-          example: serverpass123
-        ssh_key:
-          type: string
-          description: Requerido si auth_type es ssh_key
-          example: "-----BEGIN OPENSSH PRIVATE KEY-----\n..."
+          example: 1800
+          description: "Tiempo de expiración en segundos (30 minutos)"
 
-    ServerUpdate:
-      type: object
-      properties:
-        name:
-          type: string
-          example: Servidor Producción Actualizado
-        host:
-          type: string
-          example: 192.168.1.101
-        port:
-          type: integer
-          example: 2222
-        username:
-          type: string
-          example: admin
-        auth_type:
-          type: string
-          enum: [password, ssh_key]
-          example: ssh_key
-        password:
-          type: string
-          format: password
-          example: newserverpass456
-        ssh_key:
-          type: string
-          example: "-----BEGIN OPENSSH PRIVATE KEY-----\n..."
-
-    ServerResponse:
+    UserProfile:
       type: object
       properties:
         id:
-          type: integer
-          example: 1
-        user_id:
-          type: integer
-          example: 1
+          type: string
+          example: "user_123abc"
         name:
           type: string
-          example: Servidor Producción
-        host:
+          example: "Juan Pérez"
+        email:
           type: string
-          example: 192.168.1.100
-        port:
-          type: integer
-          example: 22
-        username:
-          type: string
-          example: root
-        auth_type:
-          type: string
-          enum: [password, ssh_key]
-          example: ssh_key
-        created_at:
-          type: string
-          format: date-time
-          example: 2026-02-07T10:00:00Z
-
-    ConnectionTestResponse:
-      type: object
-      properties:
-        success:
+          format: email
+          example: "juan@example.com"
+        email_verified:
           type: boolean
           example: true
-        message:
-          type: string
-          example: Conexión SSH exitosa
-        details:
-          type: object
-          properties:
-            hostname:
-              type: string
-              example: prod-server-01
-            uptime:
-              type: string
-              example: 15 days
-
-    InstallRequest:
-      type: object
-      required:
-        - application
-      properties:
-        application:
-          type: string
-          example: nginx
-        version:
-          type: string
-          example: latest
-        options:
-          type: object
-          additionalProperties: true
-          example:
-            port: 80
-            enable: true
-
-    TaskResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-          example: 1
-        server_id:
-          type: integer
-          example: 1
-        type:
-          type: string
-          example: install
-        status:
-          type: string
-          enum: [pending, running, completed, failed]
-          example: running
-        result:
-          type: object
-          nullable: true
-          additionalProperties: true
-          example:
-            output: Installation completed successfully
+        two_factor_enabled:
+          type: boolean
+          example: false
         created_at:
           type: string
           format: date-time
-          example: 2026-02-07T10:00:00Z
-        completed_at:
+          example: "2026-02-14T10:30:00Z"
+        updated_at:
           type: string
           format: date-time
-          nullable: true
-          example: null
-
-    Message:
-      type: object
-      properties:
-        message:
-          type: string
-          example: Operación exitosa
+          example: "2026-02-14T12:45:00Z"
 
     Error:
       type: object
       properties:
-        detail:
+        error:
           type: string
-          example: Error en la operación
+          example: "invalid_credentials"
+        message:
+          type: string
+          example: "Credenciales inválidas"
+        details:
+          type: object
+          additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: Petición inválida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: No autenticado o token inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "unauthorized"
+            message: "Token inválido o expirado"
