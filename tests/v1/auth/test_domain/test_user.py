@@ -33,6 +33,24 @@ class TestUser:
         assert user.password_hash == password_hash
         assert user.created_at == now
         assert user.updated_at == now
+        assert user.totp_secret is None
+        assert user.is_2fa_enabled is False
+
+    def test_user_creation_with_2fa(self):
+        """Test 5: User se crea con campos 2FA."""
+        user = User(
+            id="123e4567-e89b-12d3-a456-426614174000",
+            name="John Doe",
+            email=Email("john@example.com"),
+            password_hash="hashed_password_here",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            totp_secret="BASE32SECRET",
+            is_2fa_enabled=True
+        )
+
+        assert user.totp_secret == "BASE32SECRET"
+        assert user.is_2fa_enabled is True
 
     def test_user_empty_name(self):
         """Test 2: User con name vacío lanza InvalidUserError."""

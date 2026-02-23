@@ -5,8 +5,8 @@ import pytest
 from app.v1.auth.domain.entities import User, VerificationToken
 from app.v1.auth.domain.value_objects import Email
 from app.v1.auth.domain.exceptions import InvalidVerificationTokenError
-from app.v1.auth.use_cases.reset_password import ResetPassword
-from app.v1.auth.use_cases.hash_password import HashPassword
+from app.v1.auth.application.use_cases.reset_password import ResetPassword
+from app.v1.auth.application.use_cases.hash_password import HashPassword
 
 
 class TestResetPassword:

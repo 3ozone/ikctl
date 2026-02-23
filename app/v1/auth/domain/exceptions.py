@@ -35,3 +35,7 @@ class InvalidRefreshTokenError(DomainException):
 
 class InvalidVerificationTokenError(DomainException):
     """Error cuando el VerificationToken es inválido."""
+
+
+class InvalidPasswordHistoryError(DomainException):
+    """Error cuando el PasswordHistory es inválido."""

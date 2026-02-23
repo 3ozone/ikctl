@@ -41,21 +41,28 @@
 21. **RNF-21**: Refresh token almacenado en HttpOnly cookie (seguro contra XSS)
 22. **RNF-22**: Cookies con flags Secure, SameSite=Strict, HttpOnly
 23. **RNF-23**: Access token en respuesta JSON (para header Authorization)
+24. **RNF-24**: Cumplimiento GDPR (protección de datos, derecho al olvido, consentimiento explícito para tratamiento de datos)
+25. **RNF-25**: Latencia endpoints auth (login, register) < 100ms percentil 99 (p99)
+26. **RNF-26**: Latencia refresh token < 50ms percentil 99 (p99)
+27. **RNF-27**: Disponibilidad módulo auth 99.9% uptime mensual
+28. **RNF-28**: Throughput mínimo 100 req/s por endpoint (login, register, refresh)
+29. **RNF-29**: Tasa de éxito operaciones auth > 99.5% (excluye errores usuario: contraseña incorrecta, email inválido)
+30. **RNF-30**: Tiempo respuesta operaciones DB < 50ms percentil 95 (p95)
 
-## Requisitos de Negocio
+## Reglas de Negocio
 
-1. **RN-01**: Control de acceso a recursos protegidos
-2. **RN-02**: Soporte multi-usuario con cuentas individuales
-3. **RN-03**: Trazabilidad de acciones por usuario
-4. **RN-04**: Base para autorización en módulos de servers y operations
-5. **RN-05**: Cumplimiento normativo (GDPR, protección de datos, derecho al olvido)
-6. **RN-06**: Autoservicio completo (usuarios gestionan su cuenta sin soporte técnico)
-7. **RN-07**: Prevención de fraude (evitar cuentas falsas, bots, uso abusivo)
-8. **RN-08**: Balance seguridad-usabilidad (OAuth social login reduce fricción)
-9. **RN-09**: Reducción de costes operativos (procesos automáticos, menos tickets de soporte)
-10. **RN-10**: Escalabilidad comercial (preparado para planes/niveles de usuario)
-11. **RN-11**: Confianza y reputación (seguridad robusta genera confianza del cliente)
-12. **RN-12**: Integración con ecosistema (OAuth facilita adopción y onboarding)
+1. **RN-01**: Un email solo puede estar asociado a una cuenta activa
+2. **RN-02**: Un usuario debe verificar su email para poder usar funciones que requieran identidad validada
+3. **RN-03**: Un refresh token solo puede usarse una vez, generando uno nuevo en cada refresh (rotación automática)
+4. **RN-04**: Un usuario bloqueado por intentos fallidos no puede autenticarse durante el período de bloqueo (15 minutos)
+5. **RN-05**: Un token de verificación de email expira tras 24 horas desde su emisión
+6. **RN-06**: Un token de reset de contraseña expira tras 1 hora desde su emisión y solo puede usarse una vez
+7. **RN-07**: Un usuario no puede reutilizar sus últimas 3 contraseñas
+8. **RN-08**: Un usuario puede tener máximo 5 sesiones activas simultáneas (refresh tokens válidos)
+9. **RN-09**: El 2FA es opcional, pero una vez activado debe verificarse en cada login
+10. **RN-10**: Un refresh token revocado (logout) no puede usarse para generar nuevos access tokens
+11. **RN-11**: Un access token no puede ser revocado manualmente (stateless JWT), expira automáticamente en 30 minutos
+12. **RN-12**: Los usuarios OAuth (GitHub) no tienen contraseña local hasta que la establezcan explícitamente
 
 ## Endpoints
 

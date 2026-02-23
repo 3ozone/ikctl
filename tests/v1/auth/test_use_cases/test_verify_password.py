@@ -1,8 +1,8 @@
 """Tests para Use Case VerifyPassword."""
 import pytest
 
-from app.v1.auth.use_cases.hash_password import HashPassword
-from app.v1.auth.use_cases.verify_password import VerifyPassword
+from app.v1.auth.application.use_cases.hash_password import HashPassword
+from app.v1.auth.application.use_cases.verify_password import VerifyPassword
 
 
 class TestVerifyPassword:

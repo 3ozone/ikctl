@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 
 from app.v1.auth.domain.entities import VerificationToken, User
 from app.v1.auth.domain.value_objects import Email
-from app.v1.auth.use_cases.request_password_reset import RequestPasswordReset
-from app.v1.auth.use_cases.generate_verification_token import GenerateVerificationToken
+from app.v1.auth.application.use_cases.request_password_reset import RequestPasswordReset
+from app.v1.auth.application.use_cases.generate_verification_token import GenerateVerificationToken
 
 
 class TestRequestPasswordReset:

@@ -4,8 +4,8 @@ import pytest
 
 from app.v1.auth.domain.entities import RefreshToken
 from app.v1.auth.domain.exceptions import InvalidRefreshTokenError
-from app.v1.auth.use_cases.refresh_access_token import RefreshAccessToken
-from app.v1.auth.use_cases.create_tokens import CreateTokens
+from app.v1.auth.application.use_cases.refresh_access_token import RefreshAccessToken
+from app.v1.auth.application.use_cases.create_tokens import CreateTokens
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
 

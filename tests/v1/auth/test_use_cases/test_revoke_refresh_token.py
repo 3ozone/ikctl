@@ -4,8 +4,8 @@ import pytest
 
 from app.v1.auth.domain.entities import RefreshToken
 from app.v1.auth.domain.exceptions import InvalidRefreshTokenError
-from app.v1.auth.use_cases.revoke_refresh_token import RevokeRefreshToken
-from app.v1.auth.use_cases.refresh_access_token import RefreshAccessToken
+from app.v1.auth.application.use_cases.revoke_refresh_token import RevokeRefreshToken
+from app.v1.auth.application.use_cases.refresh_access_token import RefreshAccessToken
 
 
 class TestRevokeRefreshToken:

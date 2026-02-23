@@ -3,8 +3,8 @@ import pytest
 
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.exceptions import InvalidEmailError, InvalidUserError
-from app.v1.auth.use_cases.hash_password import HashPassword
-from app.v1.auth.use_cases.register_user import RegisterUser
+from app.v1.auth.application.use_cases.hash_password import HashPassword
+from app.v1.auth.application.use_cases.register_user import RegisterUser
 
 
 class TestRegisterUser:

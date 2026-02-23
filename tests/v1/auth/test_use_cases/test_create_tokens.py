@@ -4,7 +4,7 @@ from jose import jwt
 
 from app.v1.auth.domain.entities import User, RefreshToken
 from app.v1.auth.domain.value_objects import Email
-from app.v1.auth.use_cases.create_tokens import CreateTokens
+from app.v1.auth.application.use_cases.create_tokens import CreateTokens
 
 
 class TestCreateTokens:

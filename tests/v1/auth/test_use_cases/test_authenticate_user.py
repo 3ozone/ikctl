@@ -5,9 +5,9 @@ import pytest
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
 from app.v1.auth.domain.exceptions import InvalidUserError
-from app.v1.auth.use_cases.hash_password import HashPassword
-from app.v1.auth.use_cases.verify_password import VerifyPassword
-from app.v1.auth.use_cases.authenticate_user import AuthenticateUser
+from app.v1.auth.application.use_cases.hash_password import HashPassword
+from app.v1.auth.application.use_cases.verify_password import VerifyPassword
+from app.v1.auth.application.use_cases.authenticate_user import AuthenticateUser
 
 
 class TestAuthenticateUser:

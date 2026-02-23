@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 import pytest
 
 from app.v1.auth.domain.entities import VerificationToken
-from app.v1.auth.use_cases.generate_verification_token import GenerateVerificationToken
+from app.v1.auth.application.use_cases.generate_verification_token import GenerateVerificationToken
 
 
 class TestGenerateVerificationToken:

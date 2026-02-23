@@ -4,7 +4,7 @@ import pytest
 
 from app.v1.auth.domain.entities import VerificationToken
 from app.v1.auth.domain.exceptions import InvalidVerificationTokenError
-from app.v1.auth.use_cases.verify_email import VerifyEmail
+from app.v1.auth.application.use_cases.verify_email import VerifyEmail
 
 
 class TestVerifyEmail:

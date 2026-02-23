@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 import pytest
 
 from app.v1.auth.domain.exceptions import InvalidJWTTokenError
-from app.v1.auth.use_cases.verify_access_token import VerifyAccessToken
-from app.v1.auth.use_cases.create_tokens import CreateTokens
+from app.v1.auth.application.use_cases.verify_access_token import VerifyAccessToken
+from app.v1.auth.application.use_cases.create_tokens import CreateTokens
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
 

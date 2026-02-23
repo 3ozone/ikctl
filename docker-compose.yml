@@ -42,8 +42,34 @@ services:
     networks:
       - ikctl-network
 
+  valkey:
+    image: valkey/valkey:7.2-alpine
+    container_name: ikctl-valkey
+    restart: unless-stopped
+    command: >
+      valkey-server
+      --appendonly yes
+      --requirepass ${VALKEY_PASSWORD:-valkey_pass123}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    environment:
+      TZ: UTC
+    ports:
+      - "${VALKEY_PORT:-6379}:6379"
+    volumes:
+      - valkey_data:/data
+    networks:
+      - ikctl-network
+    healthcheck:
+      test: ["CMD", "valkey-cli", "--raw", "incr", "ping"]
+      timeout: 3s
+      retries: 5
+      interval: 10s
+
 volumes:
   mariadb_data:
+    driver: local
+  valkey_data:
     driver: local
 
 networks:
