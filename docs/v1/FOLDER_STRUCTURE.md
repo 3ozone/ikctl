@@ -14,8 +14,8 @@ app/v1/auth/
 │   ├── dtos/                   # DTOs agnósticos (dataclasses)
 │   │   └── auth_dtos.py        # AuthenticationResult, UserProfile, TokenPair
 │   ├── interfaces/             # Ports (ABC) - Dependency Inversion
-│   │   ├── repositories.py     # IUserRepository, IRefreshTokenRepository
-│   │   └── services.py         # IEmailService, IJWTProvider, ITOTPProvider
+    │   ├── repositories.py     # UserRepository, RefreshTokenRepository
+    │   └── services.py         # EmailService, JWTProvider, TOTPProvider
 │   └── use_cases/              # Casos de uso (implementan lógica de aplicación)
 │       ├── register_user.py
 │       ├── authenticate_user.py
@@ -24,15 +24,15 @@ app/v1/auth/
 └── infrastructure/              # Capa de Implementación (Adapters)
     ├── exceptions.py           # InfrastructureException, DatabaseConnectionError
     ├── persistence/            # Implementaciones de repositories
-    │   ├── user_repository.py          # UserRepository implements IUserRepository
-    │   ├── refresh_token_repository.py
+    │   ├── user_repository.py          # SQLAlchemyUserRepository implements UserRepository
+    │   ├── refresh_token_repository.py # SQLAlchemyRefreshTokenRepository
     │   └── verification_token_repository.py
     │
     ├── adapters/               # Servicios externos (NO persistencia)
-    │   ├── jwt_provider.py     # JWTProvider implements IJWTProvider
-    │   ├── email_service.py    # EmailService implements IEmailService
-    │   ├── totp_provider.py    # TOTPProvider implements ITOTPProvider
-    │   └── github_oauth.py     # GitHubOAuth client
+    │   ├── jwt_provider.py     # PyJWTProvider implements JWTProvider
+    │   ├── email_service.py    # AiosmtplibEmailService implements EmailService
+    │   ├── totp_provider.py    # PyOTPTOTPProvider implements TOTPProvider
+    │   └── github_oauth.py     # HttpxGitHubOAuth implements GitHubOAuth
     │
     └── presentation/           # Capa de entrada (Primary Adapters)
         ├── routers/            # FastAPI endpoints
@@ -91,7 +91,7 @@ presentation/ ──→ use_cases/ ──→ domain/
    ↓ Llama use case con primitivos
 2. application/use_cases/register_user.py
    ↓ Crea Entity User
-   ↓ Llama IUserRepository.save()
+   ↓ Llama UserRepository.save()
 3. infrastructure/persistence/user_repository.py
    ↓ Guarda en MariaDB
    ↓ Retorna Entity User
@@ -110,11 +110,16 @@ El módulo `shared/` contiene código reutilizable entre módulos. **NO sigue la
 app/v1/shared/
 ├── domain/                      # Abstracciones de dominio compartidas
 │   ├── events.py               # DomainEvent (base class para eventos)
-│   ├── value_objects.py        # Value Objects genéricos (no específicos negocio)
-│   └── exceptions.py           # Exception base classes (Exception)
+│   ├── exceptions.py           # Excepciones base (DomainException, ValidationError,
+│   │                           # EntityNotFoundError, EntityAlreadyExistsError,
+│   │                           # InvalidStateError, BusinessRuleViolationError)
+│   └── value_objects.py        # Value Objects genéricos (no específicos negocio)
 │
 └── infrastructure/              # Infraestructura compartida
-    ├── event_bus.py            # EventBus InMemory (interface + impl)
+    ├── event_bus.py            # EventBus InMemory (EventHandler ABC + EventBus impl)
+    ├── exceptions.py           # Excepciones base infraestructura (InfrastructureException,
+    │                           # DatabaseError, ExternalServiceError, CacheError,
+    │                           # HTTPClientError, MessageBusError, ConfigurationError)
     ├── logger.py               # Logger estructurado configurado
     ├── database.py             # Database session/connection factory
     └── cache.py                # Valkey client wrapper
@@ -144,20 +149,69 @@ Si es **infraestructura reutilizable** o **abstracción sin negocio** → shared
 
 ## Nomenclatura
 
-- **Interfaces**: Prefijo `I` (IUserRepository, IEmailService)
-- **Implementaciones**: Sin prefijo (UserRepository implements IUserRepository)
-- **DTOs aplicación**: Sufijo claro (AuthenticationResult, UserProfile)
-- **DTOs HTTP**: Sufijo Request/Response (RegisterRequest, UserResponse)
-- **Entities**: Nombres de dominio (User, RefreshToken)
-- **Value Objects**: Nombres descriptivos (Email, Password)
+- **Interfaces (Puertos)**: Sin prefijo, nombre del dominio pythónico
+  - `UserRepository`, `EmailService`, `JWTProvider`, `TOTPProvider`
+  - Las interfaces se definen como ABC en `application/interfaces/`
+  
+- **Implementaciones (Adaptadores)**: Sufijo técnico específico
+  - Repositories: `SQLAlchemyUserRepository`, `SQLAlchemyRefreshTokenRepository`
+  - Adapters: `PyJWTProvider`, `AiosmtplibEmailService`, `PyOTPTOTPProvider`, `HttpxGitHubOAuth`
+  - Pattern: `<TechStack><InterfaceName>` (ej: `Httpx` + `GitHubOAuth`)
+  
+- **DTOs aplicación**: Sufijo descriptivo claro
+  - `AuthenticationResult`, `UserProfile`, `TokenPair`, `VerificationResult`
+  
+- **DTOs HTTP**: Sufijo Request/Response (Pydantic)
+  - `RegisterRequest`, `UserResponse`, `LoginRequest`, `TokenResponse`
+  
+- **Entities**: Nombres de dominio sin prefijos/sufijos
+  - `User`, `RefreshToken`, `VerificationToken`, `PasswordHistory`
+  
+- **Value Objects**: Nombres descriptivos del concepto
+  - `Email`, `Password`, `JWTToken`
+  
+- **Excepciones**: Sufijo `Error`, jerarquía desde shared
+  - Base: `DomainException`, `InfrastructureException` (en shared)
+  - Específicas: `InvalidEmailError`, `UserNotFoundError`, `DatabaseConnectionError`
 
 ## Tests
 
 ```bash
-tests/v1/auth/
-├── test_domain/            # Unit tests (entities, value objects)
-├── test_use_cases/         # Unit tests (use cases con mocks)
-├── test_persistence/       # Integration tests (DB real)
-├── test_adapters/          # Integration tests (servicios externos)
-└── test_presentation/      # E2E tests (endpoints FastAPI)
+tests/v1/
+├── auth/
+│   ├── test_domain/            # Unit tests (entities, value objects)
+│   ├── test_use_cases/         # Unit tests (use cases con mocks)
+│   ├── test_infrastructure/    # Integration tests (repositories, adapters, services)
+│   │   ├── test_user_repository.py
+│   │   ├── test_refresh_token_repository.py
+│   │   ├── test_verification_token_repository.py
+│   │   ├── test_password_history_repository.py
+│   │   ├── test_jwt_provider.py
+│   │   ├── test_totp_provider.py
+│   │   ├── test_email_service.py
+│   │   ├── test_github_oauth.py
+│   │   ├── test_rate_limiter.py
+│   │   └── test_login_attempt_tracker.py
+│   └── test_presentation/      # E2E tests (endpoints FastAPI)
+│
+├── shared/
+│   ├── test_domain/            # Unit tests (eventos, excepciones base)
+│   │   └── test_events.py      # Tests DomainEvent (10 tests)
+│   └── test_infrastructure/    # Integration tests (event bus, logger, database)
+│       └── test_event_bus.py   # Tests EventBus InMemory (10 tests)
+│
+├── servers/
+│   ├── test_domain/
+│   ├── test_use_cases/
+│   └── test_infrastructure/
+│
+├── operations/
+│   ├── test_domain/
+│   ├── test_use_cases/
+│   └── test_infrastructure/
+│
+└── users/
+    ├── test_domain/
+    ├── test_use_cases/
+    └── test_infrastructure/
 ```
