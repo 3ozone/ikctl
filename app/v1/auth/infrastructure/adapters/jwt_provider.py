@@ -1,17 +1,17 @@
-"""JWTProvider - Implementación concreta de IJWTProvider usando python-jose."""
+"""PyJWTProvider - Implementación concreta de JWTProvider usando python-jose."""
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
 
 from jose import jwt, JWTError, ExpiredSignatureError
 
-from app.v1.auth.application.interfaces.jwt_provider import IJWTProvider
+from app.v1.auth.application.interfaces.jwt_provider import JWTProvider
 from app.v1.auth.domain.value_objects import JWTToken
 from app.v1.auth.application.exceptions import InvalidTokenError, TokenExpiredError
 from app.v1.auth.infrastructure.exceptions import InfrastructureException
 
 
-class JWTProvider(IJWTProvider):
-    """Implementación de IJWTProvider usando python-jose."""
+class PyJWTProvider(JWTProvider):
+    """Implementación de JWTProvider usando python-jose."""
 
     def __init__(
         self,

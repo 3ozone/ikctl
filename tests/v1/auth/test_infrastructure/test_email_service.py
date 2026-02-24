@@ -1,15 +1,15 @@
-"""Tests para EmailService."""
+"""Tests para AiosmtplibEmailService."""
 from unittest.mock import AsyncMock, patch
 import pytest
 
-from app.v1.auth.infrastructure.adapters.email_service import EmailService
+from app.v1.auth.infrastructure.adapters.email_service import AiosmtplibEmailService
 from app.v1.auth.infrastructure.exceptions import EmailServiceError
 
 
 @pytest.fixture
 def email_service():
-    """Fixture para EmailService con configuración de test."""
-    return EmailService(
+    """Fixture para AiosmtplibEmailService con configuración de test."""
+    return AiosmtplibEmailService(
         smtp_host="smtp.test.com",
         smtp_port=587,
         smtp_user="test@example.com",
@@ -64,7 +64,7 @@ async def test_send_verification_email_contains_token(email_service):
         # Verificar que el mensaje contiene el token
         assert captured_message is not None
         message_body = captured_message.get_payload(
-            decode=True).decode('utf-8')
+            decode=True).decode('utf-8')  # type: ignore
         assert "test-token-456" in message_body
 
 
@@ -107,7 +107,7 @@ async def test_send_password_reset_email_contains_token(email_service):
         )
 
         message_body = captured_message.get_payload(
-            decode=True).decode('utf-8')
+            decode=True).decode('utf-8')  # type: ignore
         assert "reset-abc-123" in message_body
 
 
@@ -188,5 +188,6 @@ async def test_emails_contain_user_name(email_service):
         # Verificar que todos contienen el nombre
         assert len(messages) == 4
         for message in messages:
-            message_body = message.get_payload(decode=True).decode('utf-8')
+            message_body = message.get_payload(
+                decode=True).decode('utf-8')  # type: ignore
             assert user_name in message_body

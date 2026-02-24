@@ -1,21 +1,21 @@
-"""Tests para JWTProvider."""
+"""Tests para PyJWTProvider."""
 from datetime import datetime, timezone, timedelta
 from jose import jwt
 import pytest
 
 from app.v1.auth.domain.value_objects import JWTToken
 from app.v1.auth.application.exceptions import InvalidTokenError, TokenExpiredError
-from app.v1.auth.infrastructure.adapters.jwt_provider import JWTProvider
+from app.v1.auth.infrastructure.adapters.jwt_provider import PyJWTProvider
 
 
 @pytest.fixture
 def jwt_provider():
-    """Fixture para JWTProvider."""
+    """Fixture para PyJWTProvider."""
     # Secret key para tests
     secret_key = "test-secret-key-for-jwt-testing-only"
     algorithm = "HS256"
 
-    return JWTProvider(
+    return PyJWTProvider(
         secret_key=secret_key,
         algorithm=algorithm,
         access_token_expire_minutes=30,
@@ -97,7 +97,7 @@ def test_decode_token_expired(jwt_provider):
     expired_token = jwt.encode(payload, secret_key, algorithm="HS256")
 
     # Usar el mismo secret_key en el provider
-    expired_provider = JWTProvider(
+    expired_provider = PyJWTProvider(
         secret_key=secret_key,
         algorithm="HS256",
         access_token_expire_minutes=30,

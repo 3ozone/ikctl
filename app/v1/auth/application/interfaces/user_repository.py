@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from app.v1.auth.domain.entities import User
 
 
-class IUserRepository(ABC):
+class UserRepository(ABC):
     """Contrato para operaciones de persistencia de usuarios."""
 
     @abstractmethod

@@ -1,4 +1,4 @@
-"""TOTPProvider - Implementación concreta de ITOTPProvider usando pyotp."""
+"""PyOTPTOTPProvider - Implementación concreta de TOTPProvider usando pyotp."""
 import base64
 import io
 
@@ -6,12 +6,12 @@ import pyotp
 import qrcode
 from qrcode.constants import ERROR_CORRECT_L
 
-from app.v1.auth.application.interfaces.totp_provider import ITOTPProvider
+from app.v1.auth.application.interfaces.totp_provider import TOTPProvider
 from app.v1.auth.infrastructure.exceptions import InfrastructureException
 
 
-class TOTPProvider(ITOTPProvider):
-    """Implementación de ITOTPProvider usando pyotp y qrcode."""
+class PyOTPTOTPProvider(TOTPProvider):
+    """Implementación de TOTPProvider usando pyotp y qrcode."""
 
     def generate_secret(self) -> str:
         """Genera un secret aleatorio para TOTP.

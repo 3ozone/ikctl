@@ -1,14 +1,14 @@
-"""EmailService - Implementación de IEmailService usando aiosmtplib."""
+"""AiosmtplibEmailService - Implementación de EmailService usando aiosmtplib."""
 from email.mime.text import MIMEText
 
 import aiosmtplib
 
-from app.v1.auth.application.interfaces.email_service import IEmailService
+from app.v1.auth.application.interfaces.email_service import EmailService
 from app.v1.auth.infrastructure.exceptions import EmailServiceError
 
 
-class EmailService(IEmailService):
-    """Implementación de IEmailService usando aiosmtplib."""
+class AiosmtplibEmailService(EmailService):
+    """Implementación de EmailService usando aiosmtplib."""
 
     def __init__(
         self,

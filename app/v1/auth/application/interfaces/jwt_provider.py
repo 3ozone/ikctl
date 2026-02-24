@@ -8,7 +8,7 @@ from typing import Dict, Any
 from app.v1.auth.domain.value_objects import JWTToken
 
 
-class IJWTProvider(ABC):
+class JWTProvider(ABC):
     """Contrato para operaciones de generación y validación de JWT."""
 
     @abstractmethod

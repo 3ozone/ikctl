@@ -2,9 +2,9 @@
 import uuid
 from datetime import datetime, timezone
 
-from app.v1.auth.application.interfaces.user_repository import IUserRepository
+from app.v1.auth.application.interfaces.user_repository import UserRepository
 from app.v1.auth.application.interfaces.github_oauth import IGitHubOAuth
-from app.v1.auth.application.interfaces.jwt_provider import IJWTProvider
+from app.v1.auth.application.interfaces.jwt_provider import JWTProvider
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
 
@@ -17,9 +17,9 @@ class AuthenticateWithGitHub:
 
     def __init__(
         self,
-        user_repository: IUserRepository,
+        user_repository: UserRepository,
         github_oauth: IGitHubOAuth,
-        jwt_provider: IJWTProvider
+        jwt_provider: JWTProvider
     ) -> None:
         """Constructor del use case.
 

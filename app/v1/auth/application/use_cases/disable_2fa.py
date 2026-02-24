@@ -1,7 +1,7 @@
 """Use Case: Deshabilitar autenticación de dos factores (2FA)."""
 from datetime import datetime, timezone
 
-from app.v1.auth.application.interfaces.user_repository import IUserRepository
+from app.v1.auth.application.interfaces.user_repository import UserRepository
 from app.v1.auth.application.exceptions import ResourceNotFoundError
 
 
@@ -11,7 +11,7 @@ class Disable2FA:
     Elimina el secret TOTP y marca 2FA como deshabilitado.
     """
 
-    def __init__(self, user_repository: IUserRepository) -> None:
+    def __init__(self, user_repository: UserRepository) -> None:
         """Constructor del use case.
 
         Args:

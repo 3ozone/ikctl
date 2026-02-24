@@ -6,7 +6,7 @@ Define el contrato que será implementado en infrastructure/adapters/.
 from abc import ABC, abstractmethod
 
 
-class ITOTPProvider(ABC):
+class TOTPProvider(ABC):
     """Contrato para operaciones de 2FA con TOTP."""
 
     @abstractmethod

@@ -33,7 +33,7 @@ class TestUser:
         assert user.password_hash == password_hash
         assert user.created_at == now
         assert user.updated_at == now
-        assert user.totp_secret is None
+        assert user.totp_secret is None  # type: ignore
         assert user.is_2fa_enabled is False
 
     def test_user_creation_with_2fa(self):
@@ -49,7 +49,7 @@ class TestUser:
             is_2fa_enabled=True
         )
 
-        assert user.totp_secret == "BASE32SECRET"
+        assert user.totp_secret == "BASE32SECRET"  # type: ignore
         assert user.is_2fa_enabled is True
 
     def test_user_empty_name(self):

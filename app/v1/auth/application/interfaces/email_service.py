@@ -6,7 +6,7 @@ Define el contrato que será implementado en infrastructure/adapters/.
 from abc import ABC, abstractmethod
 
 
-class IEmailService(ABC):
+class EmailService(ABC):
     """Contrato para operaciones de envío de emails."""
 
     @abstractmethod

@@ -4,13 +4,13 @@ from datetime import datetime, timezone
 from sqlalchemy import select, delete as sql_delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.v1.auth.application.interfaces.refresh_token_repository import IRefreshTokenRepository
+from app.v1.auth.application.interfaces.refresh_token_repository import RefreshTokenRepository
 from app.v1.auth.domain.entities import RefreshToken
 from app.v1.auth.infrastructure.persistence.models import RefreshTokenModel
 from app.v1.auth.infrastructure.exceptions import InfrastructureException
 
 
-class RefreshTokenRepositoryImpl(IRefreshTokenRepository):
+class SQLAlchemyRefreshTokenRepository(RefreshTokenRepository):
     """Implementación de repositorio de refresh tokens con SQLAlchemy async."""
 
     def __init__(self, session: AsyncSession) -> None:

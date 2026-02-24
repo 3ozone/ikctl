@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from app.v1.auth.domain.entities import VerificationToken
 
 
-class IVerificationTokenRepository(ABC):
+class VerificationTokenRepository(ABC):
     """Contrato para operaciones de persistencia de tokens de verificación."""
 
     @abstractmethod

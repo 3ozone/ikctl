@@ -8,7 +8,7 @@ from typing import List
 from app.v1.auth.domain.entities import PasswordHistory
 
 
-class IPasswordHistoryRepository(ABC):
+class PasswordHistoryRepository(ABC):
     """Contrato para operaciones de historial de contraseñas (RN-07)."""
 
     @abstractmethod

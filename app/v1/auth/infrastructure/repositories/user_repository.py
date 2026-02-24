@@ -1,17 +1,17 @@
-"""UserRepositoryImpl - Implementación SQLAlchemy de IUserRepository."""
+"""SQLAlchemyUserRepository - Implementación SQLAlchemy de UserRepository."""
 from typing import Optional
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
-from app.v1.auth.application.interfaces.user_repository import IUserRepository
+from app.v1.auth.application.interfaces.user_repository import UserRepository
 from app.v1.auth.application.exceptions import ResourceNotFoundError
 from app.v1.auth.infrastructure.persistence.models import UserModel
 from app.v1.auth.infrastructure.exceptions import InfrastructureException
 
 
-class UserRepositoryImpl(IUserRepository):
+class SQLAlchemyUserRepository(UserRepository):
     """Implementación SQLAlchemy del repositorio de usuarios."""
 
     def __init__(self, session: AsyncSession):

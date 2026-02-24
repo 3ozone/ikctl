@@ -1,15 +1,15 @@
-"""Tests para TOTPProvider."""
+"""Tests para PyOTPTOTPProvider."""
 import re
 import pytest
 import pyotp
 
-from app.v1.auth.infrastructure.adapters.totp_provider import TOTPProvider
+from app.v1.auth.infrastructure.adapters.totp_provider import PyOTPTOTPProvider
 
 
 @pytest.fixture
 def totp_provider():
-    """Fixture para TOTPProvider."""
-    return TOTPProvider()
+    """Fixture para PyOTPTOTPProvider."""
+    return PyOTPTOTPProvider()
 
 
 def test_generate_secret(totp_provider):

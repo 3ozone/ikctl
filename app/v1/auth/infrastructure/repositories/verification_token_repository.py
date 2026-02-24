@@ -1,17 +1,17 @@
-"""VerificationTokenRepositoryImpl - Implementación SQLAlchemy de IVerificationTokenRepository."""
+"""SQLAlchemyVerificationTokenRepository - Implementación SQLAlchemy de VerificationTokenRepository."""
 from typing import Optional
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.v1.auth.domain.entities import VerificationToken
 from app.v1.auth.application.interfaces.verification_token_repository import (
-    IVerificationTokenRepository
+    VerificationTokenRepository
 )
 from app.v1.auth.infrastructure.persistence.models import VerificationTokenModel
 from app.v1.auth.infrastructure.exceptions import InfrastructureException
 
 
-class VerificationTokenRepositoryImpl(IVerificationTokenRepository):
+class SQLAlchemyVerificationTokenRepository(VerificationTokenRepository):
     """Implementación SQLAlchemy del repositorio de tokens de verificación."""
 
     def __init__(self, session: AsyncSession):

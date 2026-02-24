@@ -8,7 +8,7 @@ from typing import Optional, List
 from app.v1.auth.domain.entities import RefreshToken
 
 
-class IRefreshTokenRepository(ABC):
+class RefreshTokenRepository(ABC):
     """Contrato para operaciones de persistencia de refresh tokens."""
 
     @abstractmethod

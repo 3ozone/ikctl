@@ -1,5 +1,5 @@
 """Use Case: GetUserProfile - Obtener perfil de usuario."""
-from app.v1.auth.application.interfaces.user_repository import IUserRepository
+from app.v1.auth.application.interfaces.user_repository import UserRepository
 from app.v1.auth.application.dtos.user_profile import UserProfile
 from app.v1.auth.application.exceptions import ResourceNotFoundError
 
@@ -7,7 +7,7 @@ from app.v1.auth.application.exceptions import ResourceNotFoundError
 class GetUserProfile:
     """Use Case para obtener el perfil de un usuario."""
 
-    def __init__(self, user_repository: IUserRepository):
+    def __init__(self, user_repository: UserRepository):
         """
         Inyectar dependencias.
 
@@ -33,7 +33,8 @@ class GetUserProfile:
         user = await self.user_repository.find_by_id(user_id)
 
         if user is None:
-            raise ResourceNotFoundError(f"Usuario con ID {user_id} no encontrado")
+            raise ResourceNotFoundError(
+                f"Usuario con ID {user_id} no encontrado")
 
         # Convertir User entity a UserProfile DTO
         return UserProfile(

@@ -51,6 +51,21 @@
 
   **FASE 2 COMPLETADA: 48 tests GREEN ✅ (19/19 use cases, todas las RN de use cases implementadas) 🎉**
 
+## Fase 2.5: Refactorización de Nomenclatura (Clean Code)
+
+**Aplicar convenciones de nombres para consistencia del código**
+
+- [x] **T-27.1**: Renombrar interfaces (quitar prefijo "I"): ~~`IEmailService` → `EmailService`~~✅, ~~`IJWTProvider` → `JWTProvider`~~✅, ~~`ITOTPProvider` → `TOTPProvider`~~✅, ~~`IUserRepository` → `UserRepository`~~✅, ~~`IRefreshTokenRepository` → `RefreshTokenRepository`~~✅, ~~`IVerificationTokenRepository` → `VerificationTokenRepository`~~✅, ~~`IPasswordHistoryRepository` → `PasswordHistoryRepository`~~✅ (pendiente: `IGitHubOAuth`)
+- [x] **T-27.2**: Renombrar implementaciones con sufijo técnico: ~~`UserRepositoryImpl` → `SQLAlchemyUserRepository`~~✅, ~~`RefreshTokenRepositoryImpl` → `SQLAlchemyRefreshTokenRepository`~~✅, ~~`VerificationTokenRepositoryImpl` → `SQLAlchemyVerificationTokenRepository`~~✅
+- [x] **T-27.3**: Renombrar adapters con sufijo técnico: ~~`JWTProvider` → `PyJWTProvider`~~✅, ~~`TOTPProvider` → `PyOTPTOTPProvider`~~✅, ~~`EmailService` → `AiosmtplibEmailService`~~✅
+- [x] **T-27.4**: Actualizar imports en todos los use cases (renombrado IPasswordHistoryRepository → PasswordHistoryRepository, imports limpios) ✅
+- [x] **T-27.5**: Actualizar imports en todos los tests (verificado: todos correctos, sin imports obsoletos) ✅
+- [x] **T-27.6**: Actualizar fixtures en `conftest.py` (SQLAlchemy repositories) ✅
+- [x] **T-27.7**: Ejecutar suite completa de tests (130 tests GREEN) ✅
+- [x] **T-27.8**: Actualizar AGENTS.md con convenciones formalizadas ✅
+
+  **FASE 2.5 COMPLETADA: 8/8 tareas ✅ - Refactorización de nomenclatura finalizada. 11/11 clases renombradas (7 interfaces, 3 repositories, 1 pendiente: IGitHubOAuth se hará en T-31). 130 tests GREEN ✅**
+
 ## Fase 3: Infrastructure (Repositories y Adapters)
 
 - [x] **T-25**: Repository Adapter `UserRepository` (save, find_by_email, find_by_id, update, delete) - 5 métodos - 5 tests ✅

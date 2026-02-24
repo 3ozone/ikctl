@@ -1,7 +1,7 @@
 """Use Case: Verificar código de autenticación de dos factores (2FA)."""
 
-from app.v1.auth.application.interfaces.user_repository import IUserRepository
-from app.v1.auth.application.interfaces.totp_provider import ITOTPProvider
+from app.v1.auth.application.interfaces.user_repository import UserRepository
+from app.v1.auth.application.interfaces.totp_provider import TOTPProvider
 from app.v1.auth.application.exceptions import (
     ResourceNotFoundError,
     UnauthorizedOperationError
@@ -16,8 +16,8 @@ class Verify2FA:
 
     def __init__(
         self,
-        user_repository: IUserRepository,
-        totp_provider: ITOTPProvider
+        user_repository: UserRepository,
+        totp_provider: TOTPProvider
     ) -> None:
         """Constructor del use case.
 

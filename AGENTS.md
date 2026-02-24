@@ -109,11 +109,19 @@ En ikctl seguimos los principios de:
 
 ### Buenas Prácticas Clean Architecture
 
-- **Interfaces como Puertos (Dependency Inversion)**: Repositorios y servicios externos se definen como ABC en `domain/interfaces/`, implementaciones concretas en `infrastructure/`. Casos de uso dependen de abstracciones, no de implementaciones.
-- **Nombres de Dominio, No Tecnología**: `UserRepository` ✅, `MariaDBUserRepository` ❌ en domain/. La tecnología se revela solo en infrastructure/ con nombres como `MariaDBUserRepositoryImpl`.
+- **Interfaces como Puertos (Dependency Inversion)**: Repositorios y servicios externos se definen como ABC en `application/interfaces/`, implementaciones concretas en `infrastructure/`. Casos de uso dependen de abstracciones, no de implementaciones.
 - **Adaptadores Separados**: Lógica de conversión de datos externos (API responses, DB rows) vive en adaptadores (infrastructure/adapters/), nunca mezclada con casos de uso.
 - **Wiring/Composición Manual**: En `main.py` para MVP. Cuando tengamos 10+ módulos, evaluaremos DI container (dependency-injector). Principio: simplicidad primero, herramientas cuando escale.
 - **Tests de Contrato**: Verificar compatibilidad entre abstracciones y adaptadores (ver "Estrategia de Testing" → Contract Tests). Crítico para EventBus y repositories.
+
+### Convenciones de Nombres
+
+- **Entidades y Value Objects**: PascalCase (`User`, `Email`, `Password`, `RefreshToken`)
+- **Puertos (Interfaces)**: Nombre del dominio sin prefijo "I" (`UserRepository`, `EmailService`, `JWTProvider`)
+- **Adaptadores**: Sufijo técnico específico (`SQLAlchemyUserRepository`, `AiosmtplibEmailService`, `PyJWTProvider`, `PyOTPTOTPProvider`)
+- **Casos de Uso**: PascalCase con verbo (`RegisterUser`, `ChangePassword`, `Enable2FA`)
+- **Excepciones**: Sufijo `Error` (`InvalidEmailError`, `UserNotFoundError`, `EmailServiceError`)
+- **Evitar barrels**: Limitar `__init__.py` exports a subcarpetas del mismo nivel, no exportar a través de capas
 
 ### Manejo de Errores
 

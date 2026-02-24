@@ -3,7 +3,7 @@ from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.exceptions import InvalidUserError
 from app.v1.auth.application.use_cases.hash_password import HashPassword
 from app.v1.auth.application.use_cases.verify_password import VerifyPassword
-from app.v1.auth.application.interfaces.password_history_repository import IPasswordHistoryRepository
+from app.v1.auth.application.interfaces.password_history_repository import PasswordHistoryRepository
 from app.v1.auth.application.exceptions import UnauthorizedOperationError
 
 
@@ -14,7 +14,7 @@ class ChangePassword:
         self,
         hash_password: HashPassword,
         verify_password: VerifyPassword,
-        password_history_repository: IPasswordHistoryRepository
+        password_history_repository: PasswordHistoryRepository
     ):
         """
         Inyectar dependencias.
