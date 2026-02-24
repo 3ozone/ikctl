@@ -1,5 +1,7 @@
 # Tareas del Módulo Auth v1.0.0
 
+**Estado:** 187 tests GREEN ✅ (44 domain + 48 use cases + 75 infrastructure + 20 shared)
+
 ## Fase 0: Migración a Clean Architecture (CRÍTICA)
 
 **DEBE EJECUTARSE PRIMERO** - Restructurar código actual a la arquitectura documentada en ADR-007
@@ -55,7 +57,7 @@
 
 **Aplicar convenciones de nombres para consistencia del código**
 
-- [x] **T-27.1**: Renombrar interfaces (quitar prefijo "I"): ~~`IEmailService` → `EmailService`~~✅, ~~`IJWTProvider` → `JWTProvider`~~✅, ~~`ITOTPProvider` → `TOTPProvider`~~✅, ~~`IUserRepository` → `UserRepository`~~✅, ~~`IRefreshTokenRepository` → `RefreshTokenRepository`~~✅, ~~`IVerificationTokenRepository` → `VerificationTokenRepository`~~✅, ~~`IPasswordHistoryRepository` → `PasswordHistoryRepository`~~✅ (pendiente: `IGitHubOAuth`)
+- [x] **T-27.1**: Renombrar interfaces (quitar prefijo "I"): ~~`IEmailService` → `EmailService`~~✅, ~~`IJWTProvider` → `JWTProvider`~~✅, ~~`ITOTPProvider` → `TOTPProvider`~~✅, ~~`IUserRepository` → `UserRepository`~~✅, ~~`IRefreshTokenRepository` → `RefreshTokenRepository`~~✅, ~~`IVerificationTokenRepository` → `VerificationTokenRepository`~~✅, ~~`IPasswordHistoryRepository` → `PasswordHistoryRepository`~~✅, ~~`IGitHubOAuth` → `GitHubOAuth`~~✅
 - [x] **T-27.2**: Renombrar implementaciones con sufijo técnico: ~~`UserRepositoryImpl` → `SQLAlchemyUserRepository`~~✅, ~~`RefreshTokenRepositoryImpl` → `SQLAlchemyRefreshTokenRepository`~~✅, ~~`VerificationTokenRepositoryImpl` → `SQLAlchemyVerificationTokenRepository`~~✅
 - [x] **T-27.3**: Renombrar adapters con sufijo técnico: ~~`JWTProvider` → `PyJWTProvider`~~✅, ~~`TOTPProvider` → `PyOTPTOTPProvider`~~✅, ~~`EmailService` → `AiosmtplibEmailService`~~✅
 - [x] **T-27.4**: Actualizar imports en todos los use cases (renombrado IPasswordHistoryRepository → PasswordHistoryRepository, imports limpios) ✅
@@ -64,7 +66,7 @@
 - [x] **T-27.7**: Ejecutar suite completa de tests (130 tests GREEN) ✅
 - [x] **T-27.8**: Actualizar AGENTS.md con convenciones formalizadas ✅
 
-  **FASE 2.5 COMPLETADA: 8/8 tareas ✅ - Refactorización de nomenclatura finalizada. 11/11 clases renombradas (7 interfaces, 3 repositories, 1 pendiente: IGitHubOAuth se hará en T-31). 130 tests GREEN ✅**
+  **FASE 2.5 COMPLETADA: 8/8 tareas ✅ - Refactorización de nomenclatura finalizada. 12/12 clases renombradas (8 interfaces, 3 repositories, 1 adapter pendiente de implementar). 130 tests GREEN ✅**
 
 ## Fase 3: Infrastructure (Repositories y Adapters)
 
@@ -74,15 +76,16 @@
 - [x] **T-28**: Adapter `JWTTokenProvider` (create_access_token, create_refresh_token, decode_token, verify_token) - 4 métodos - 9 tests ✅
 - [x] **T-29**: Adapter `TOTPProvider` (generate_secret, generate_qr_code, verify_code, get_provisioning_uri) - 4 métodos - 9 tests ✅
 - [x] **T-30**: Adapter `EmailService` (send_verification_email, send_password_reset_email, send_password_changed_notification, send_2fa_enabled_notification) - 4 métodos - 8 tests ✅
-- [ ] **T-31**: Adapter `GitHubOAuth` - Integración con GitHub OAuth2
-- [ ] **T-32**: Service `RateLimiter` - Limitar intentos de login
-- [ ] **T-33**: Service `LoginAttemptTracker` - Bloqueo temporal tras 5 intentos (RN-04: 15 minutos)
-- [ ] **T-33.1**: Repository `PasswordHistoryRepository` (save, find_last_n_by_user) - RN-07
+- [x] **T-31**: Adapter `GitHubOAuth` (get_authorization_url, exchange_code_for_token, get_user_info) - 3 métodos - 7 tests ✅ (HttpxGitHubOAuth con httpx async, renombrada interface IGitHubOAuth → GitHubOAuth)
+- [x] **T-32**: Service `RateLimiter` (is_allowed, increment) - 2 métodos - 10 tests ✅ (ValkeyRateLimiter con Valkey para contadores con TTL, RNF-09: 10 req/min login)
+- [x] **T-33**: Service `LoginAttemptTracker` (record_failed_attempt, is_blocked, reset_attempts, get_remaining_attempts) - 4 métodos - 13 tests ✅ (ValkeyLoginAttemptTracker, RN-04 y RNF-08: bloqueo 15 min tras 5 intentos)
+- [x] **T-33.1**: Repository `PasswordHistoryRepository` (save, find_last_n_by_user) - 2 métodos - 7 tests ✅ (SQLAlchemyPasswordHistoryRepository con ORDER BY created_at DESC para obtener últimas N, RN-07: prevenir reutilización últimas 3 contraseñas)
 
 ### Shared Module (Infraestructura Transversal)
 
-- [ ] **T-34.1**: Implementar `shared/domain/events.py` (DomainEvent base class: event_id, correlation_id, version, occurred_at, metadata)
-- [ ] **T-34.2**: Implementar `shared/infrastructure/event_bus.py` (EventBus InMemory sincrónico con publish/subscribe)
+- [x] **T-34.1**: Implementar `shared/domain/events.py` (DomainEvent base class: event_id, correlation_id, version, occurred_at, metadata) - 10 tests ✅ (Validaciones UUID, strings no vacíos, UTC datetime, version >= 1, serialización to_dict/from_dict, ADR-008)
+- [x] **T-34.2**: Implementar `shared/infrastructure/event_bus.py` (EventBus InMemory sincrónico con publish/subscribe) - 10 tests ✅ (EventHandler ABC, múltiples handlers, unsubscribe, resiliencia a excepciones, get_subscribers, logging estructurado, ADR-008 Fase 1)
+- [x] **T-34.2.1**: Refactorizar excepciones auth para heredar de shared (DomainException, InfrastructureException en shared/domain y shared/infrastructure) ✅
 - [ ] **T-34.3**: Implementar `shared/infrastructure/logger.py` (structlog configurado con JSON output y context injection)
 - [ ] **T-34.4**: Implementar `shared/infrastructure/database.py` (session factory con async support para SQLAlchemy)
 - [ ] **T-34.5**: Implementar `shared/infrastructure/cache.py` (Valkey client wrapper con operaciones básicas)
@@ -100,7 +103,7 @@
 - [ ] **T-34.11**: Exception handlers FastAPI (DomainException → 400, UseCaseException → 422, InfrastructureException → 500)
 - [ ] **T-34.12**: CORS middleware configuration (FastAPI CORSMiddleware con origins permitidos)
 
-  **FASE 3 EN PROGRESO: 38 tests GREEN ✅ (6/22 tareas completas)**
+  **FASE 3 EN PROGRESO: 95 tests GREEN ✅ (12/22 tareas completas: repositories [4], adapters [4], services [2], shared [2])**
 
 ## Fase 4: Presentation (FastAPI Endpoints)
 

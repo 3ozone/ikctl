@@ -1,8 +1,10 @@
 """Excepciones del dominio de autenticación."""
 
-
-class DomainException(Exception):
-    """Excepción base del dominio."""
+from app.v1.shared.domain.exceptions import (
+    DomainException,
+    EntityNotFoundError,
+    EntityAlreadyExistsError,
+)
 
 
 class InvalidEmailError(DomainException):
@@ -17,11 +19,11 @@ class InvalidUserError(DomainException):
     """Error cuando los datos del usuario son inválidos."""
 
 
-class UserNotFoundError(DomainException):
+class UserNotFoundError(EntityNotFoundError):
     """Error cuando el usuario no existe."""
 
 
-class UserAlreadyExistsError(DomainException):
+class UserAlreadyExistsError(EntityAlreadyExistsError):
     """Error cuando se intenta crear un usuario que ya existe."""
 
 

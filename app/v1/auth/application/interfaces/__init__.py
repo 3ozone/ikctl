@@ -12,7 +12,9 @@ from .password_history_repository import PasswordHistoryRepository
 from .email_service import EmailService
 from .jwt_provider import JWTProvider
 from .totp_provider import TOTPProvider
-from .github_oauth import IGitHubOAuth
+from .github_oauth import GitHubOAuth
+from .rate_limiter import RateLimiter
+from .login_attempt_tracker import LoginAttemptTracker
 
 __all__ = [
     "UserRepository",
@@ -22,5 +24,7 @@ __all__ = [
     "EmailService",
     "JWTProvider",
     "TOTPProvider",
-    "IGitHubOAuth",
+    "GitHubOAuth",
+    "RateLimiter",
+    "LoginAttemptTracker",
 ]

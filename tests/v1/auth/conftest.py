@@ -18,6 +18,9 @@ from app.v1.auth.infrastructure.persistence.models import (
 from app.v1.auth.infrastructure.repositories.refresh_token_repository import (
     SQLAlchemyRefreshTokenRepository
 )
+from app.v1.auth.infrastructure.repositories.password_history_repository import (
+    SQLAlchemyPasswordHistoryRepository
+)
 
 
 @pytest_asyncio.fixture
@@ -68,3 +71,9 @@ async def user_repository(db_session):
 async def verification_token_repository(db_session):
     """Fixture para VerificationTokenRepository con DB real."""
     return SQLAlchemyVerificationTokenRepository(db_session)
+
+
+@pytest_asyncio.fixture
+async def password_history_repository(db_session):
+    """Fixture para PasswordHistoryRepository con DB real."""
+    return SQLAlchemyPasswordHistoryRepository(db_session)

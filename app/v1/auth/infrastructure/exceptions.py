@@ -4,20 +4,23 @@ Infrastructure Layer Exceptions.
 Excepciones específicas de la capa de infraestructura (persistencia, adaptadores externos).
 """
 
+from app.v1.shared.infrastructure.exceptions import (
+    InfrastructureException,
+    DatabaseError,
+    ExternalServiceError,
+    CacheError,
+)
 
-class InfrastructureException(Exception):
-    """Base para excepciones de infraestructura."""
 
-
-class DatabaseConnectionError(InfrastructureException):
+class DatabaseConnectionError(DatabaseError):
     """Error de conexión a la base de datos."""
 
 
-class DatabaseQueryError(InfrastructureException):
+class DatabaseQueryError(DatabaseError):
     """Error al ejecutar una consulta en la base de datos."""
 
 
-class EmailServiceError(InfrastructureException):
+class EmailServiceError(ExternalServiceError):
     """Error al enviar email a través del servicio externo."""
 
 
@@ -33,9 +36,9 @@ class TOTPProviderError(InfrastructureException):
     """Error al generar o validar códigos TOTP."""
 
 
-class GitHubOAuthError(InfrastructureException):
+class GitHubOAuthError(ExternalServiceError):
     """Error en integración OAuth con GitHub."""
 
 
-class CacheServiceError(InfrastructureException):
+class CacheServiceError(CacheError):
     """Error al interactuar con Valkey/cache."""
