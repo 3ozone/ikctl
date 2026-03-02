@@ -43,9 +43,14 @@ class EventHandler(ABC):
 **Requisitos MVP:**
 
 - ✅ **CorrelationId**: propagado desde API request hasta event handlers
-- ✅ **Idempotencia handlers**: uso de event_id para deduplicación
 - ✅ **Schemas versionados**: field `version` en eventos
 - ✅ **Logs estructurados**: cada evento publicado/consumido loggeado con correlationId
+- ✅ **Eventos tras persistencia**: use cases publican eventos **después** de `await repository.save()`, nunca antes
+- ✅ **Quién publica**: el use case publica el evento, nunca la entity ni el repository
+
+> **Nota sobre idempotencia y DLQ**: Con EventBus InMemory no hay reintentos automáticos ni broker externo. La idempotencia de handlers y el Dead Letter Queue (DLQ) **no aplican en Fase 1** — son propios de sistemas con broker externo (Fase 2). Si un handler falla, se loggea el error y se continúa.
+> **Nota sobre Outbox pattern**: El Outbox pattern resuelve escritura dual atómica entre DB y broker externo. **No aplica en monolito con EventBus InMemory** — el bus es síncrono y vive en el mismo proceso. Se implementará en Fase 2 junto con Valkey Streams.
+> **Nota sobre consistencia**: El EventBus InMemory es **síncrono e inmediato**, no hay eventual consistency. Los eventos se procesan en el mismo request antes de devolver la respuesta.
 
 ### Fase 2: Migración a Valkey Streams (Futuro)
 
@@ -54,13 +59,13 @@ class EventHandler(ABC):
 **Arquitectura:**
 
 ```python
-# 1. Publisher
-event_bus.publish(event)  # Interface no cambia
+# 1. Publisher (interface no cambia)
+event_bus.publish(event)
 
-# 2. Outbox pattern (transaccional)
+# 2. Outbox pattern (transaccional) — necesario con broker externo
 with db.transaction():
     db.save(user)
-    db.outbox.save(event)  # Mismo commit
+    db.outbox.save(event)  # Mismo commit — garantía atómica
 
 # 3. Worker publica a Valkey Streams
 valkey.xadd("events:UserRegistered", {
@@ -70,7 +75,7 @@ valkey.xadd("events:UserRegistered", {
     "version": event.version
 })
 
-# 4. Consumer con idempotencia
+# 4. Consumer con idempotencia — necesaria con reintentos de broker
 consumer_group = valkey.xreadgroup("events", "email-service")
 for message in consumer_group:
     if not processed_cache.exists(message.event_id):
@@ -133,17 +138,16 @@ event_bus.publish("UserRegistered")  # ❌ Domain no controla
 
 ✅ **Desacoplamiento**: Módulos independientes, cambios aislados  
 ✅ **Observabilidad desde MVP**: CorrelationId en logs estructura debugging  
-✅ **Migración gradual**: EventBus interface permite cambiar implementación sin tocar lógica  
-✅ **Idempotencia**: Handlers seguros para reintentos  
+✅ **Migración gradual**: EventBus interface (ABC) permite cambiar implementación sin tocar lógica de negocio  
 ✅ **Escalabilidad futura**: Valkey Streams listo para microservicios  
-✅ **DLQ**: Eventos fallidos no se pierden, reprocesamiento manual  
+✅ **Síncrono en Fase 1**: EventBus InMemory es inmediato, sin lag ni eventual consistency  
 
 ### Negativas
 
-⚠️ **Complejidad inicial**: EventBus InMemory + estructura de eventos  
-⚠️ **Overhead observabilidad**: Logs/métricas por evento (~2-5ms)  
-⚠️ **Eventual consistency**: Eventos asíncronos (Valkey Streams) no inmediatos  
-⚠️ **Debugging distribuido**: Requiere correlationId y trazas end-to-end  
+⚠️ **Complejidad inicial**: EventBus + estructura de eventos  
+⚠️ **Sin DLQ en Fase 1**: eventos fallidos se loggean pero se pierden (InMemory sin broker)  
+⚠️ **Eventual consistency (solo Fase 2)**: aplica solo con Valkey Streams asíncrono  
+⚠️ **Debugging distribuido (solo Fase 2)**: correlationId crítico en microservicios  
 
 ### Mitigaciones
 
@@ -164,11 +168,15 @@ event_bus.publish("UserRegistered")  # ❌ Domain no controla
 **MVP (Fase actual):**
 ```bash
 shared/domain/
-├── events.py              # DomainEvent base class
-└── event_bus.py          # EventBus InMemory interface + impl
+└── events.py                  # DomainEvent base class
+
+shared/application/
+└── interfaces/
+    └── event_bus.py           # EventBus ABC + EventHandler ABC (puertos)
 
 shared/infrastructure/
-└── event_bus_valkey.py   # EventBus Valkey Streams (futuro)
+├── event_bus.py               # InMemoryEventBus (adaptador concreto)
+└── event_bus_valkey.py        # ValkeyEventBus (futuro — Fase 2)
 ```
 
 **Roadmap:**

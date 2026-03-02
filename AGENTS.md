@@ -107,6 +107,71 @@ En ikctl seguimos los principios de:
 - Migraciones versionadas: Alembic con scripts up/down, nunca modificar migraciones aplicadas
 - Rollback DB: cada migración debe tener su reversa funcional, backup antes de cambios
 
+### Clean Architecture — Capas y Responsabilidades
+
+**Regla fundamental**: las dependencias solo apuntan hacia adentro. Las capas externas conocen las internas, nunca al revés.
+
+#### `domain/` — Núcleo, sin dependencias externas
+- **Entities**: objetos con identidad (`User`, `RefreshToken`), mutan via comandos de negocio
+- **Value Objects**: objetos inmutables por valor (`Email`, `Password`, `JWTToken`)
+- **Domain Events**: hechos de negocio ocurridos (`UserRegistered`, `PasswordChanged`)
+- **Domain Exceptions**: errores de negocio (`InvalidEmailError`, `UserNotFoundError`)
+- ❌ Nunca importar DB, HTTP, frameworks ni servicios externos
+
+#### `application/` — Orquesta el dominio
+- **Use Cases**: orquestan entities, value objects, puertos y eventos. **Siempre devuelven DTOs, nunca entities**
+- **DTOs**: estructuras de datos de entrada/salida de los use cases (agnósticos de framework)
+- **Ports (Interfaces/ABCs)**: contratos que la infraestructura debe implementar (`UserRepository`, `EmailService`, `EventBus`, `EventHandler`)
+- **Application Exceptions**: errores de orquestación (`UnauthorizedOperationError`, `EmailAlreadyExistsError`)
+- ❌ Nunca importar SQLAlchemy, FastAPI, httpx ni implementaciones concretas
+
+#### `infrastructure/` — Implementa los puertos
+- **Adapters**: implementaciones concretas de los puertos (`SQLAlchemyUserRepository`, `InMemoryEventBus`, `PyJWTProvider`)
+- **Presentation**: FastAPI routers, Pydantic schemas (solo validación HTTP, delega a use cases)
+- **Servicios externos**: SMTP, OAuth, cache, DB sessions
+- ❌ Nunca contener lógica de negocio
+
+#### `main.py` — Composition Root
+
+- Instancia todos los adaptadores e inyecta dependencias en los use cases
+- Es el único lugar donde `infrastructure` y `application` se conectan
+
+**Reglas clave:**
+
+- **Use cases → DTOs**: los use cases nunca devuelven entities al exterior, siempre DTOs
+- **Eventos tras persistencia**: los use cases publican eventos de dominio **después** de `await repository.save()`, nunca antes
+- **Ports en application/**: `EventBus`, `EventHandler` y todos los ABCs de repositorios y servicios viven en `application/interfaces/`, no en `domain/`
+- **Adaptadores en infrastructure/**: `InMemoryEventBus`, `SQLAlchemy*`, `PyJWT*` son adaptadores concretos
+
+### Wiring/Composición Manual
+
+En `main.py` (Composition Root) se instancian y conectan todos los componentes. Los lifetimes son:
+
+**Singleton** (una instancia para toda la app):
+
+- `InMemoryEventBus`, `ValkeyRateLimiter`, `ValkeyLoginAttemptTracker`
+- `AiosmtplibEmailService`, `PyJWTProvider`, `PyOTPTOTPProvider`, `HttpxGitHubOAuth`
+- `Settings` — configuración inmutable al arranque
+
+**Scoped** (una instancia por request HTTP):
+
+- `AsyncSession` (SQLAlchemy) — garantiza transacciones por request
+- Todos los repositories (`SQLAlchemy*`) — dependen de la sesión scoped
+- Use cases que usan repositories — dependen de los repositories scoped
+
+Con FastAPI se gestiona via `Depends()`:
+
+```python
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    async with session_factory() as session:
+        yield session
+        await session.commit()  # rollback automático si hay excepción
+```
+
+**Factory pattern**: ❌ no necesario — las entities se construyen con `dataclasses` y la validación está en `__post_init__`.
+
+**Unit of Work explícito**: ❌ no necesario — la `AsyncSession` scoped de SQLAlchemy actúa como UoW. Si un use case guarda `User` y `VerificationToken` en la misma sesión, un fallo hace rollback de ambas operaciones automáticamente. La clave es que todos los repositories de un request compartan la misma sesión.
+
 ### Buenas Prácticas Clean Architecture
 
 - **Interfaces como Puertos (Dependency Inversion)**: Repositorios y servicios externos se definen como ABC en `application/interfaces/`, implementaciones concretas en `infrastructure/`. Casos de uso dependen de abstracciones, no de implementaciones.
@@ -122,6 +187,102 @@ En ikctl seguimos los principios de:
 - **Casos de Uso**: PascalCase con verbo (`RegisterUser`, `ChangePassword`, `Enable2FA`)
 - **Excepciones**: Sufijo `Error` (`InvalidEmailError`, `UserNotFoundError`, `EmailServiceError`)
 - **Evitar barrels**: Limitar `__init__.py` exports a subcarpetas del mismo nivel, no exportar a través de capas
+
+### Entidades y Value Objects
+
+#### Value Objects
+
+- **Inmutables**: siempre `@dataclass(frozen=True)` — nunca cambian tras su creación
+- **Igualdad por valor**: dos VOs con el mismo valor son iguales (`__eq__` y `__hash__` automáticos con `frozen=True`)
+- **Validación en `__post_init__`**: las invariantes se garantizan en construcción, nunca puede existir un VO inválido
+- **Comportamiento de dominio**: deben tener métodos que expresen lógica propia, no ser simples contenedores de datos
+  - `Email`: `.normalized()`, `.domain()`
+  - `JWTToken`: `.get_user_id()`, `.get_expiration()`, `.is_expired()`, `.is_access_token()`
+- **Sin dependencias externas**: nunca importar DB, HTTP ni servicios en un VO
+
+```python
+@dataclass(frozen=True)
+class Email:
+    value: str
+    def __post_init__(self): ...         # validación, invariantes
+    def normalized(self) -> str: ...     # comportamiento dominio
+    def domain(self) -> str: ...         # comportamiento dominio
+```
+
+#### Entities
+
+- **Identidad por id**: dos entities son iguales si tienen el mismo `id`, independientemente de sus campos
+- **`__eq__` explícito**: comparar solo por `id`, no por valor de campos
+- **Validación en `__post_init__`**: invariantes iniciales garantizadas en construcción
+- **Comandos de negocio**: métodos que mutan estado deben encapsular la lógica (no mutar campos directamente desde fuera)
+- **Queries de estado**: métodos que responden preguntas de negocio sin mutar estado
+- **Anti-patrón a evitar — Modelo Anémico**: si los use cases hacen `user.is_2fa_enabled = True` directamente, la entity no tiene comportamiento propio. La lógica debe vivir en la entity.
+
+```python
+@dataclass
+class User:
+    id: str
+    # ... campos
+    def enable_2fa(self, secret: str) -> None: ...    # comando — encapsula mutación
+    def disable_2fa(self) -> None: ...                # comando — encapsula mutación
+    def verify_email(self) -> None: ...               # comando — encapsula mutación
+    def is_verified(self) -> bool: ...                # query — sin mutación
+    def is_2fa_required(self) -> bool: ...            # query — sin mutación
+    def __eq__(self, other) -> bool:
+        return isinstance(other, User) and self.id == other.id
+```
+
+- **Sin dependencias externas**: nunca importar DB, HTTP ni servicios en una entity. Si se necesita bcrypt para verificar password, ese método no va en la entity — va en el caso de uso o un servicio de dominio.
+
+### CQRS en Use Cases
+
+Los use cases se separan en dos subcarpetas dentro de `application/`:
+
+**`application/commands/`** — cambian estado, pueden publicar eventos
+- Mutan entities via comandos de negocio
+- Persisten via repositorios
+- Publican eventos de dominio **después** de `repository.save()`
+- Devuelven `None` o un DTO mínimo de confirmación (nunca entities)
+
+**`application/queries/`** — solo leen, sin efectos secundarios
+- No mutan ningún estado
+- No persisten nada
+- No publican eventos
+- Devuelven DTOs con datos
+
+```python
+# Command — muta estado
+class RegisterUser:
+    async def execute(self, name: str, email: str, password_hash: str) -> RegistrationResult:
+        user = User(...)           # construye entity
+        await self._repo.save(user)  # persiste
+        await self._bus.publish(UserRegistered(...))  # evento tras persistencia
+        return RegistrationResult(user_id=user.id)  # DTO, nunca entity
+
+# Query — solo lee
+class GetUserProfile:
+    async def execute(self, user_id: str) -> UserProfile:
+        user = await self._repo.find_by_id(user_id)  # solo lectura
+        return UserProfile(id=user.id, name=user.name, email=user.email.value)
+```
+
+**Clasificación de use cases auth:**
+
+| Command | Query |
+|---|---|
+| `RegisterUser` | `AuthenticateUser` |
+| `VerifyEmail` | `VerifyAccessToken` |
+| `ChangePassword` | `VerifyPassword` |
+| `ResetPassword` | `HashPassword` |
+| `RequestPasswordReset` | `GetUserProfile` |
+| `GenerateVerificationToken` | `Verify2FA` |
+| `RevokeRefreshToken` | |
+| `Enable2FA` | |
+| `Disable2FA` | |
+| `UpdateUserProfile` | |
+| `CreateTokens` | |
+| `RefreshAccessToken` | |
+| `AuthenticateWithGitHub` | |
 
 ### Manejo de Errores
 

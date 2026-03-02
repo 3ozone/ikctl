@@ -56,6 +56,46 @@ infrastructure/
 
 **Detalle completo**: Ver [docs/v1/FOLDER_STRUCTURE.md](../FOLDER_STRUCTURE.md)
 
+### Reglas de Domain Layer
+
+#### Value Objects
+
+- **Inmutables**: siempre `@dataclass(frozen=True)`
+- **Igualdad por valor**: automática con `frozen=True` (`__eq__`, `__hash__`)
+- **Validación en `__post_init__`**: nunca puede existir un VO inválido
+- **Comportamiento de dominio**: métodos que expresan lógica propia (no solo contenedores)
+- **Sin dependencias externas**: nunca importar DB, HTTP ni servicios
+
+```python
+@dataclass(frozen=True)
+class Email:
+    value: str
+    def __post_init__(self): ...         # validación, invariantes
+    def normalized(self) -> str: ...     # comportamiento dominio
+    def domain(self) -> str: ...         # comportamiento dominio
+```
+
+#### Entities
+
+- **Identidad por id**: igualdad basada en `id`, no en valores de campos
+- **`__eq__` explícito**: comparar solo por `id`
+- **Comandos de negocio**: métodos que mutan estado encapsulan la lógica (nunca mutar campos directamente desde use cases)
+- **Queries de estado**: métodos que responden preguntas de negocio sin mutar estado
+- **Anti-patrón — Modelo Anémico**: `user.is_2fa_enabled = True` desde un use case es incorrecto. La lógica debe vivir en la entity.
+
+```python
+@dataclass
+class User:
+    id: str
+    def enable_2fa(self, secret: str) -> None: ...    # comando
+    def disable_2fa(self) -> None: ...                # comando
+    def is_verified(self) -> bool: ...                # query
+    def __eq__(self, other) -> bool:
+        return isinstance(other, User) and self.id == other.id
+```
+
+- **Sin dependencias externas**: si una operación necesita bcrypt u otro servicio, va en un use case o servicio de dominio, no en la entity.
+
 ### Módulo Shared (Excepción)
 
 El módulo `shared/` NO sigue la estructura completa de capas. Contiene:

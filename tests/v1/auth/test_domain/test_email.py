@@ -40,3 +40,23 @@ class TestEmail:
         email1 = Email("user@example.com")
         email2 = Email("other@example.com")
         assert email1 != email2
+
+    def test_normalized_returns_lowercase(self):
+        """Test 7: normalized() devuelve el email en minúsculas."""
+        email = Email("User@Example.COM")
+        assert email.normalized() == "user@example.com"
+
+    def test_normalized_already_lowercase(self):
+        """Test 8: normalized() no cambia un email ya en minúsculas."""
+        email = Email("user@example.com")
+        assert email.normalized() == "user@example.com"
+
+    def test_domain_returns_part_after_at(self):
+        """Test 9: domain() devuelve la parte del email tras el @."""
+        email = Email("user@example.com")
+        assert email.domain() == "example.com"
+
+    def test_domain_with_subdomain(self):
+        """Test 10: domain() devuelve el dominio completo incluyendo subdominio."""
+        email = Email("user@mail.example.com")
+        assert email.domain() == "mail.example.com"

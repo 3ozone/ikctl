@@ -141,9 +141,9 @@ class SQLAlchemyRefreshTokenRepository(RefreshTokenRepository):
             now = datetime.now(timezone.utc)
             # type: ignore necesario porque Pylance no reconoce func.count como callable
             stmt = select(func.count(RefreshTokenModel.id)).where(  # type: ignore
-                RefreshTokenModel.user_id == user_id,
-                RefreshTokenModel.expires_at > now
-            )
+                RefreshTokenModel.user_id == user_id,  # type: ignore
+                RefreshTokenModel.expires_at > now  # type: ignore
+            )  # type: ignore
             result = await self.session.execute(stmt)
             count = result.scalar()
             return count or 0
