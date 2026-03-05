@@ -4,8 +4,8 @@ import pytest
 
 from app.v1.auth.domain.entities import RefreshToken
 from app.v1.auth.domain.exceptions import InvalidRefreshTokenError
-from app.v1.auth.application.use_cases.revoke_refresh_token import RevokeRefreshToken
-from app.v1.auth.application.use_cases.refresh_access_token import RefreshAccessToken
+from app.v1.auth.application.commands.revoke_refresh_token import RevokeRefreshToken
+from app.v1.auth.application.commands.refresh_access_token import RefreshAccessToken
 
 
 class TestRevokeRefreshToken:
@@ -25,13 +25,11 @@ class TestRevokeRefreshToken:
         )
 
         # Revocamos el token
-        revoked_token = revoke_uc.execute(refresh_token=refresh_token)
+        result = revoke_uc.execute(refresh_token=refresh_token)
 
-        # Verificamos que el token fue modificado
-        assert isinstance(revoked_token, RefreshToken)
-        assert revoked_token.id == refresh_token.id
-        # El token debería expirar inmediatamente
-        assert revoked_token.expires_at <= datetime.now(timezone.utc)
+        # Verificamos que devuelve None y la entity fue mutada in-place
+        assert result is None
+        assert refresh_token.expires_at <= datetime.now(timezone.utc)
 
     def test_revoke_refresh_token_cannot_refresh_after_revocation(self):
         """Test 2: Un refresh_token revocado no puede ser usado para refrescar."""
@@ -48,8 +46,8 @@ class TestRevokeRefreshToken:
         )
 
         # Revocamos el token
-        revoked_token = revoke_uc.execute(refresh_token=valid_token)
+        revoke_uc.execute(refresh_token=valid_token)
 
         # Intentamos usar el token revocado para refrescar acceso
         with pytest.raises(InvalidRefreshTokenError):
-            refresh_uc.execute(refresh_token=revoked_token)
+            refresh_uc.execute(refresh_token=valid_token)

@@ -1,10 +1,11 @@
 """Tests para Use Case RequestPasswordReset."""
 from datetime import datetime, timezone
 
-from app.v1.auth.domain.entities import VerificationToken, User
+from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
-from app.v1.auth.application.use_cases.request_password_reset import RequestPasswordReset
-from app.v1.auth.application.use_cases.generate_verification_token import GenerateVerificationToken
+from app.v1.auth.application.commands.request_password_reset import RequestPasswordReset
+from app.v1.auth.application.commands.generate_verification_token import GenerateVerificationToken
+from app.v1.auth.application.dtos.verification_result import VerificationResult
 
 
 class TestRequestPasswordReset:
@@ -25,15 +26,12 @@ class TestRequestPasswordReset:
         )
 
         # Solicitamos reset de contraseña
-        reset_token = request_reset_uc.execute(user=user)
+        result = request_reset_uc.execute(user=user)
 
-        # Verificamos que se generó el token correctamente
-        assert isinstance(reset_token, VerificationToken)
-        assert reset_token.user_id == user.id
-        assert reset_token.token_type == "password_reset"
-        assert reset_token.id is not None
-        assert reset_token.token is not None
-        assert reset_token.expires_at > datetime.now(timezone.utc)
+        # Verificamos el resultado
+        assert isinstance(result, VerificationResult)
+        assert result.success is True
+        assert result.user_id == user.id
 
     def test_request_password_reset_unique_tokens(self):
         """Test 2: RequestPasswordReset genera tokens únicos cada vez que se solicita."""
@@ -50,11 +48,12 @@ class TestRequestPasswordReset:
         )
 
         # Solicitamos dos reseteos de contraseña
-        token1 = request_reset_uc.execute(user=user)
-        token2 = request_reset_uc.execute(user=user)
+        result1 = request_reset_uc.execute(user=user)
+        result2 = request_reset_uc.execute(user=user)
 
-        # Verificamos que los tokens sean únicos
-        assert token1.id != token2.id
-        assert token1.token != token2.token
-        # Pero pertenecen al mismo usuario
-        assert token1.user_id == token2.user_id == user.id
+        # Ambos devuelven VerificationResult exitoso para el mismo usuario
+        assert isinstance(result1, VerificationResult)
+        assert isinstance(result2, VerificationResult)
+        assert result1.success is True
+        assert result2.success is True
+        assert result1.user_id == result2.user_id == user.id

@@ -1,7 +1,7 @@
 """Tests para Use Case HashPassword."""
 import pytest
 
-from app.v1.auth.application.use_cases.hash_password import HashPassword
+from app.v1.auth.application.queries.hash_password import HashPassword
 
 
 class TestHashPassword:

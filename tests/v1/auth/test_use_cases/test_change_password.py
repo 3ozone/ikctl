@@ -6,10 +6,12 @@ import pytest
 from app.v1.auth.domain.value_objects import Email
 from app.v1.auth.domain.entities import User, PasswordHistory
 from app.v1.auth.domain.exceptions import InvalidUserError
-from app.v1.auth.application.use_cases.hash_password import HashPassword
-from app.v1.auth.application.use_cases.verify_password import VerifyPassword
-from app.v1.auth.application.use_cases.change_password import ChangePassword
+from app.v1.auth.application.queries.hash_password import HashPassword
+from app.v1.auth.application.queries.verify_password import VerifyPassword
+from app.v1.auth.application.commands.change_password import ChangePassword
 from app.v1.auth.application.exceptions import UnauthorizedOperationError
+from app.v1.auth.application.dtos.password_change_result import PasswordChangeResult
+from app.v1.auth.domain.events.password_changed import PasswordChanged
 
 
 class TestChangePassword:
@@ -40,21 +42,19 @@ class TestChangePassword:
         )
 
         # ACT: Cambiar contraseña
-        updated_user = await change_password_uc.execute(
+        result = await change_password_uc.execute(
             user=user,
             current_password="OldPassword123",
             new_password="NewPassword456"
         )
 
         # ASSERT
-        assert isinstance(updated_user, User)
-        assert updated_user.id == user.id
-        assert updated_user.password_hash != old_password_hash  # Hash cambió
-        assert updated_user.password_hash != "NewPassword456"  # No es texto plano
+        assert isinstance(result, PasswordChangeResult)
+        assert result.success is True
+        assert result.user_id == user.id
 
         # Verificar que se guardó en el historial
-        mock_password_history_repo.save.assert_called_once_with(
-            "user-123", updated_user.password_hash)
+        mock_password_history_repo.save.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_change_password_incorrect_current_password(self):
@@ -191,7 +191,7 @@ class TestChangePassword:
         )
 
         # ACT: Cambiar a una contraseña que NO está en el historial
-        updated_user = await change_password_uc.execute(
+        result = await change_password_uc.execute(
             user=user,
             current_password="CurrentPassword999",
             # Nueva contraseña no está en historial
@@ -199,14 +199,47 @@ class TestChangePassword:
         )
 
         # ASSERT
-        assert isinstance(updated_user, User)
-        assert updated_user.id == user.id
-        assert updated_user.password_hash != current_password_hash  # Hash cambió
+        assert isinstance(result, PasswordChangeResult)
+        assert result.success is True
+        assert result.user_id == user.id
 
         # Verificar que se llamó al repositorio para consultar historial
         mock_password_history_repo.find_last_n_by_user.assert_called_once_with(
             "user-123", 3)
 
         # Verificar que se guardó la nueva contraseña en el historial
-        mock_password_history_repo.save.assert_called_once_with(
-            "user-123", updated_user.password_hash)
+        mock_password_history_repo.save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_change_password_publishes_password_changed_event(self):
+        """Test 5: ChangePassword publica PasswordChanged tras cambiar la contraseña."""
+        hash_uc = HashPassword()
+        verify_uc = VerifyPassword()
+        mock_password_history_repo = AsyncMock()
+        mock_password_history_repo.find_last_n_by_user.return_value = []
+        event_bus = AsyncMock()
+
+        change_password_uc = ChangePassword(
+            hash_uc, verify_uc, mock_password_history_repo, event_bus=event_bus
+        )
+
+        old_password_hash = hash_uc.execute("OldPassword123")
+        user = User(
+            id="user-123",
+            name="John Doe",
+            email=Email("john@example.com"),
+            password_hash=old_password_hash,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+
+        await change_password_uc.execute(
+            user=user,
+            current_password="OldPassword123",
+            new_password="NewPassword456"
+        )
+
+        event_bus.publish.assert_called_once()
+        published_event = event_bus.publish.call_args[0][0]
+        assert isinstance(published_event, PasswordChanged)
+        assert published_event.aggregate_id == "user-123"

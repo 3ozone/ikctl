@@ -1,6 +1,6 @@
 """Tests para Entity RefreshToken."""
-import pytest
 from datetime import datetime, timedelta
+import pytest
 
 from app.v1.auth.domain.entities import RefreshToken
 from app.v1.auth.domain.exceptions import InvalidRefreshTokenError
@@ -98,3 +98,27 @@ class TestRefreshToken:
         )
 
         assert token1 == token2
+
+    def test_is_expired_returns_true_when_past(self):
+        """Test 7: is_expired() devuelve True cuando expires_at está en el pasado."""
+        refresh_token = RefreshToken(
+            id="token-123",
+            user_id="user-456",
+            token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            expires_at=datetime.now() - timedelta(seconds=1),
+            created_at=datetime.now() - timedelta(days=7)
+        )
+
+        assert refresh_token.is_expired() is True
+
+    def test_is_expired_returns_false_when_future(self):
+        """Test 8: is_expired() devuelve False cuando expires_at está en el futuro."""
+        refresh_token = RefreshToken(
+            id="token-123",
+            user_id="user-456",
+            token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            expires_at=datetime.now() + timedelta(days=7),
+            created_at=datetime.now()
+        )
+
+        assert refresh_token.is_expired() is False

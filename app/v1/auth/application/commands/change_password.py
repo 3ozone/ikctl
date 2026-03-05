@@ -1,10 +1,16 @@
 """Use Case: ChangePassword - Cambiar contraseña de usuario."""
+from uuid import uuid4
+from typing import Optional
+
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.exceptions import InvalidUserError
-from app.v1.auth.application.use_cases.hash_password import HashPassword
-from app.v1.auth.application.use_cases.verify_password import VerifyPassword
+from app.v1.auth.application.queries.hash_password import HashPassword
+from app.v1.auth.application.queries.verify_password import VerifyPassword
 from app.v1.auth.application.interfaces.password_history_repository import PasswordHistoryRepository
 from app.v1.auth.application.exceptions import UnauthorizedOperationError
+from app.v1.auth.application.dtos.password_change_result import PasswordChangeResult
+from app.v1.auth.domain.events.password_changed import PasswordChanged
+from app.v1.shared.application.interfaces.event_bus import EventBus
 
 
 class ChangePassword:
@@ -14,21 +20,15 @@ class ChangePassword:
         self,
         hash_password: HashPassword,
         verify_password: VerifyPassword,
-        password_history_repository: PasswordHistoryRepository
+        password_history_repository: PasswordHistoryRepository,
+        event_bus: Optional[EventBus] = None
     ):
-        """
-        Inyectar dependencias.
-
-        Args:
-            hash_password: Use case para hashear contraseñas
-            verify_password: Use case para verificar contraseñas
-            password_history_repository: Repositorio de historial de contraseñas (RN-07)
-        """
         self.hash_password = hash_password
         self.verify_password = verify_password
         self.password_history_repository = password_history_repository
+        self._event_bus = event_bus
 
-    async def execute(self, user: User, current_password: str, new_password: str) -> User:
+    async def execute(self, user: User, current_password: str, new_password: str) -> PasswordChangeResult:
         """
         Cambiar contraseña de usuario.
 
@@ -38,7 +38,7 @@ class ChangePassword:
             new_password: Nueva contraseña en texto plano
 
         Returns:
-            User: Usuario con password_hash actualizado
+            PasswordChangeResult: Resultado del cambio de contraseña
 
         Raises:
             InvalidUserError: Si current_password es incorrecto
@@ -61,10 +61,15 @@ class ChangePassword:
                     "No puedes reutilizar una de tus últimas 3 contraseñas"
                 )
 
-        # Actualizar usuario con nueva contraseña
-        user.password_hash = new_password_hash
+        # Actualizar usuario con nueva contraseña via entity command
+        user.update_password(new_password_hash)
 
         # Guardar nueva contraseña en historial (RN-07)
         await self.password_history_repository.save(user.id, new_password_hash)
 
-        return user
+        if self._event_bus is not None:
+            await self._event_bus.publish(
+                PasswordChanged(user_id=user.id, correlation_id=str(uuid4()))
+            )
+
+        return PasswordChangeResult(success=True, user_id=user.id)

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 import pytest
 
-from app.v1.auth.application.use_cases.update_user_profile import UpdateUserProfile
+from app.v1.auth.application.commands.update_user_profile import UpdateUserProfile
 from app.v1.auth.application.exceptions import ResourceNotFoundError
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email

@@ -326,7 +326,7 @@ class GetUserProfile:
 ```bash
 app/v1/
 ├── auth/
-│   ├── domain/                  # Entities, Value Objects, Exceptions
+│   ├── domain/                  # entities/, value_objects/, exceptions/, events/
 │   ├── application/             # Use Cases, DTOs, Interfaces (Ports)
 │   └── infrastructure/          # Persistence, Adapters, Presentation
 │       ├── persistence/         # Repositories (DB)

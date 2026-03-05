@@ -81,3 +81,41 @@ class TestPasswordHistory:
         new_user_id = "user-999"
         history.user_id = new_user_id
         assert history.user_id == new_user_id
+
+    def test_password_history_equality_same_id(self):
+        """Test 7: Dos PasswordHistory con el mismo id son iguales."""
+        now = datetime.now()
+
+        history1 = PasswordHistory(
+            id="history-same",
+            user_id="user-1",
+            password_hash="hash-A",
+            created_at=now
+        )
+        history2 = PasswordHistory(
+            id="history-same",
+            user_id="user-2",
+            password_hash="hash-B",
+            created_at=now
+        )
+
+        assert history1 == history2
+
+    def test_password_history_inequality_different_id(self):
+        """Test 8: Dos PasswordHistory con distinto id no son iguales."""
+        now = datetime.now()
+
+        history1 = PasswordHistory(
+            id="history-aaa",
+            user_id="user-1",
+            password_hash="hash",
+            created_at=now
+        )
+        history2 = PasswordHistory(
+            id="history-bbb",
+            user_id="user-1",
+            password_hash="hash",
+            created_at=now
+        )
+
+        assert history1 != history2

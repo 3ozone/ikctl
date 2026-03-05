@@ -2,9 +2,10 @@
 from datetime import datetime, timezone, timedelta
 from jose import jwt
 
-from app.v1.auth.domain.entities import User, RefreshToken
+from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
-from app.v1.auth.application.use_cases.create_tokens import CreateTokens
+from app.v1.auth.application.dtos.token_pair import TokenPair
+from app.v1.auth.application.commands.create_tokens import CreateTokens
 
 
 class TestCreateTokens:
@@ -27,17 +28,12 @@ class TestCreateTokens:
         # Creamos los tokens
         result = create_tokens_uc.execute(user=user)
 
-        # Verificamos que ambos tokens fueron creados
-        assert "access_token" in result
-        assert "refresh_token" in result
-
-        # Verificamos que el access_token es un string no vacío
-        assert isinstance(result["access_token"], str)
-        assert len(result["access_token"]) > 0
-
-        # Verificamos que refresh_token es una entidad RefreshToken
-        assert isinstance(result["refresh_token"], RefreshToken)
-        assert result["refresh_token"].user_id == user.id
+        assert isinstance(result, TokenPair)
+        assert isinstance(result.access_token, str)
+        assert len(result.access_token) > 0
+        assert isinstance(result.refresh_token, str)
+        assert len(result.refresh_token) > 0
+        assert result.token_type == "Bearer"
 
     def test_create_tokens_expiration_times(self):
         """Test 2: CreateTokens establece los tiempos de expiración correctamente."""
@@ -56,19 +52,15 @@ class TestCreateTokens:
         before = datetime.now(timezone.utc)
         result = create_tokens_uc.execute(user=user)
 
-        # Decodificar el access_token (sin verificar firma para este test)
-        payload = jwt.get_unverified_claims(result["access_token"])
+        payload = jwt.get_unverified_claims(result.access_token)
         access_token_exp = datetime.fromtimestamp(payload["exp"], timezone.utc)
 
-        # Verificar que el access_token expira en aproximadamente 30 minutos
         expected_access_exp = before + timedelta(minutes=30)
         time_diff = abs(
             (access_token_exp - expected_access_exp).total_seconds())
-        assert time_diff < 60  # Diferencia menor a 60 segundos
+        assert time_diff < 60
 
-        # Verificar que el refresh_token expira en aproximadamente 7 días
-        refresh_token_exp = result["refresh_token"].expires_at
         expected_refresh_exp = before + timedelta(days=7)
-        time_diff = abs(
-            (refresh_token_exp - expected_refresh_exp).total_seconds())
-        assert time_diff < 60  # Diferencia menor a 60 segundos
+        time_diff = abs((result.refresh_expires_at -
+                        expected_refresh_exp).total_seconds())
+        assert time_diff < 60

@@ -42,3 +42,11 @@ class RefreshToken:
 
     def __hash__(self) -> int:
         return hash(self.id)
+
+    def is_expired(self) -> bool:
+        """Comprueba si el token de refresco ha expirado.
+
+        Returns:
+            True si expires_at está en el pasado, False si aún es válido.
+        """
+        return datetime.now() > self.expires_at

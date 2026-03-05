@@ -153,3 +153,51 @@ class TestVerificationToken:
         # Debe lanzar excepción porque el token expiró
         with pytest.raises(InvalidVerificationTokenError):
             vtoken.is_valid_for_email_verification()
+
+    def test_verification_token_equality_same_id(self):
+        """Test 10: Dos VerificationToken con el mismo id son iguales."""
+        now = datetime.now(timezone.utc)
+        expires = now + timedelta(hours=24)
+
+        token1 = VerificationToken(
+            id="vtoken-same",
+            user_id="user-1",
+            token="token-value-A",
+            token_type="email_verification",
+            expires_at=expires,
+            created_at=now
+        )
+        token2 = VerificationToken(
+            id="vtoken-same",
+            user_id="user-2",
+            token="token-value-B",
+            token_type="password_reset",
+            expires_at=expires,
+            created_at=now
+        )
+
+        assert token1 == token2
+
+    def test_verification_token_inequality_different_id(self):
+        """Test 11: Dos VerificationToken con distinto id no son iguales."""
+        now = datetime.now(timezone.utc)
+        expires = now + timedelta(hours=24)
+
+        token1 = VerificationToken(
+            id="vtoken-aaa",
+            user_id="user-1",
+            token="token-value",
+            token_type="email_verification",
+            expires_at=expires,
+            created_at=now
+        )
+        token2 = VerificationToken(
+            id="vtoken-bbb",
+            user_id="user-1",
+            token="token-value",
+            token_type="email_verification",
+            expires_at=expires,
+            created_at=now
+        )
+
+        assert token1 != token2

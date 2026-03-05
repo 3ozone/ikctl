@@ -5,8 +5,8 @@ import pytest
 from app.v1.auth.domain.entities import User, VerificationToken
 from app.v1.auth.domain.value_objects import Email
 from app.v1.auth.domain.exceptions import InvalidVerificationTokenError
-from app.v1.auth.application.use_cases.reset_password import ResetPassword
-from app.v1.auth.application.use_cases.hash_password import HashPassword
+from app.v1.auth.application.commands.reset_password import ResetPassword
+from app.v1.auth.application.queries.hash_password import HashPassword
 
 
 class TestResetPassword:
@@ -39,18 +39,18 @@ class TestResetPassword:
         new_password = "NewSecurePass123"
 
         # Reseteamos la contraseña
-        updated_user = reset_password_uc.execute(
+        result = reset_password_uc.execute(
             user=user,
             reset_token=reset_token,
             new_password=new_password
         )
 
-        # Verificamos que la contraseña fue actualizada
-        assert isinstance(updated_user, User)
-        assert updated_user.id == user.id
-        assert updated_user.password_hash != "old_hashed_password"
-        assert updated_user.password_hash != new_password  # Está hasheado
-        assert len(updated_user.password_hash) > 0
+        # Verificamos que el use case devuelve None
+        assert result is None
+        # Verificamos que la contraseña del usuario fue actualizada en la entity
+        assert user.password_hash != "old_hashed_password"
+        assert user.password_hash != new_password  # Está hasheado
+        assert len(user.password_hash) > 0
 
     def test_reset_password_expired_token(self):
         """Test 2: ResetPassword lanza InvalidVerificationTokenError si el token ha expirado."""

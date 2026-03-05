@@ -6,8 +6,9 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock
 import pytest
 
-from app.v1.auth.application.use_cases.authenticate_with_github import AuthenticateWithGitHub
+from app.v1.auth.application.commands.authenticate_with_github import AuthenticateWithGitHub
 from app.v1.auth.application.exceptions import InvalidTokenError
+from app.v1.auth.application.dtos.authentication_result import AuthenticationResult
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email, JWTToken
 
@@ -70,9 +71,10 @@ async def test_authenticate_with_github_new_user():
     jwt_provider.create_access_token.assert_called_once()
     jwt_provider.create_refresh_token.assert_called_once()
 
-    assert result["access_token"] == "jwt_access_token"
-    assert result["refresh_token"] == "jwt_refresh_token"
-    assert result["user_id"] == saved_user.id
+    assert isinstance(result, AuthenticationResult)
+    assert result.access_token == "jwt_access_token"
+    assert result.refresh_token == "jwt_refresh_token"
+    assert result.user_id == saved_user.id
 
 
 @pytest.mark.asyncio
@@ -135,9 +137,10 @@ async def test_authenticate_with_github_existing_user():
     jwt_provider.create_access_token.assert_called_once()
     jwt_provider.create_refresh_token.assert_called_once()
 
-    assert result["access_token"] == "jwt_access_token"
-    assert result["refresh_token"] == "jwt_refresh_token"
-    assert result["user_id"] == "user-123"
+    assert isinstance(result, AuthenticationResult)
+    assert result.access_token == "jwt_access_token"
+    assert result.refresh_token == "jwt_refresh_token"
+    assert result.user_id == "user-123"
 
 
 @pytest.mark.asyncio

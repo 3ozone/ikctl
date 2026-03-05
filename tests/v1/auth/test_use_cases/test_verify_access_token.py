@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 import pytest
 
 from app.v1.auth.domain.exceptions import InvalidJWTTokenError
-from app.v1.auth.application.use_cases.verify_access_token import VerifyAccessToken
-from app.v1.auth.application.use_cases.create_tokens import CreateTokens
+from app.v1.auth.application.queries.verify_access_token import VerifyAccessToken
+from app.v1.auth.application.commands.create_tokens import CreateTokens
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
 
@@ -28,7 +28,7 @@ class TestVerifyAccessToken:
         )
 
         result = create_tokens_uc.execute(user=user)
-        access_token = result["access_token"]
+        access_token = result.access_token
 
         # Verificamos el access token
         payload = verify_token_uc.execute(access_token=access_token)

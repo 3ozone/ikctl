@@ -3,7 +3,8 @@ from uuid import uuid4
 from datetime import datetime, timezone, timedelta
 from jose import jwt
 
-from app.v1.auth.domain.entities import User, RefreshToken
+from app.v1.auth.domain.entities import User
+from app.v1.auth.application.dtos.token_pair import TokenPair
 
 
 class CreateTokens:
@@ -19,16 +20,14 @@ class CreateTokens:
     ALGORITHM = "HS256"
     SECRET_KEY = "ikctl-secret-key-change-in-production"
 
-    def execute(self, user: User) -> dict:
+    def execute(self, user: User) -> TokenPair:
         """Crea access_token y refresh_token para un usuario.
 
         Args:
             user: Usuario para el cual crear los tokens
 
         Returns:
-            Diccionario con:
-                - access_token: JWT firmado (string)
-                - refresh_token: RefreshToken entity
+            TokenPair con access_token, refresh_token y fechas de expiración
         """
         now = datetime.now(timezone.utc)
 
@@ -47,18 +46,13 @@ class CreateTokens:
             algorithm=self.ALGORITHM
         )
 
-        # Crear refresh token (Entity)
-        refresh_token_expires = now + \
-            timedelta(days=self.REFRESH_TOKEN_EXPIRE_DAYS)
-        refresh_token = RefreshToken(
-            id=str(uuid4()),
-            user_id=user.id,
-            token=str(uuid4()),  # Token único aleatorio
-            expires_at=refresh_token_expires,
-            created_at=now
-        )
+        # Crear refresh token (token opaco aleatorio)
+        refresh_token_expires = now + timedelta(days=self.REFRESH_TOKEN_EXPIRE_DAYS)
+        refresh_token_value = str(uuid4())
 
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token
-        }
+        return TokenPair(
+            access_token=access_token,
+            refresh_token=refresh_token_value,
+            access_expires_at=access_token_expires,
+            refresh_expires_at=refresh_token_expires,
+        )

@@ -1,7 +1,8 @@
 """Use Case para autenticar un usuario."""
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.exceptions import InvalidUserError
-from app.v1.auth.application.use_cases.verify_password import VerifyPassword
+from app.v1.auth.application.dtos.user_profile import UserProfile
+from app.v1.auth.application.queries.verify_password import VerifyPassword
 
 
 class AuthenticateUser:
@@ -19,7 +20,7 @@ class AuthenticateUser:
         """
         self.verify_password = verify_password
 
-    def execute(self, plaintext_password: str, user: User) -> User:
+    def execute(self, plaintext_password: str, user: User) -> UserProfile:
         """Autentica un usuario verificando su contraseña.
 
         Args:
@@ -27,16 +28,23 @@ class AuthenticateUser:
             user: Usuario con el hash de contraseña almacenado
 
         Returns:
-            El usuario si la autenticación es exitosa
+            UserProfile con los datos del usuario autenticado
 
         Raises:
             InvalidUserError: Si la contraseña es incorrecta
         """
-        # Verificar que la contraseña coincida con el hash
         is_valid = self.verify_password.execute(
             plaintext_password, user.password_hash)
 
         if not is_valid:
             raise InvalidUserError("Contraseña incorrecta")
 
-        return user
+        return UserProfile(
+            id=user.id,
+            name=user.name,
+            email=user.email.value,
+            is_verified=user.is_verified(),
+            is_2fa_enabled=user.is_2fa_required(),
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+        )

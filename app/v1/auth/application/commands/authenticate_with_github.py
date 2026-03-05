@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from app.v1.auth.application.interfaces.user_repository import UserRepository
 from app.v1.auth.application.interfaces.github_oauth import GitHubOAuth
 from app.v1.auth.application.interfaces.jwt_provider import JWTProvider
+from app.v1.auth.application.dtos.authentication_result import AuthenticationResult
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
 
@@ -32,14 +33,14 @@ class AuthenticateWithGitHub:
         self.github_oauth = github_oauth
         self.jwt_provider = jwt_provider
 
-    async def execute(self, code: str) -> dict[str, str]:
+    async def execute(self, code: str) -> AuthenticationResult:
         """Autentica usuario con código de autorización de GitHub.
 
         Args:
             code: Authorization code de GitHub OAuth callback.
 
         Returns:
-            Dict con 'access_token', 'refresh_token' y 'user_id'.
+            AuthenticationResult con access_token, refresh_token y user_id.
 
         Raises:
             InvalidTokenError: Si el código es inválido o expirado.
@@ -77,8 +78,8 @@ class AuthenticateWithGitHub:
             user_id=user.id
         )
 
-        return {
-            "access_token": access_token_obj.token,
-            "refresh_token": refresh_token_obj.token,
-            "user_id": user.id
-        }
+        return AuthenticationResult(
+            user_id=user.id,
+            access_token=access_token_obj.token,
+            refresh_token=refresh_token_obj.token,
+        )

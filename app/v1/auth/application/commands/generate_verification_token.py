@@ -3,6 +3,7 @@ from uuid import uuid4
 from datetime import datetime, timezone, timedelta
 
 from app.v1.auth.domain.entities import VerificationToken
+from app.v1.auth.application.dtos.verification_result import VerificationResult
 
 
 class GenerateVerificationToken:
@@ -17,7 +18,7 @@ class GenerateVerificationToken:
         "password_reset": 24
     }
 
-    def execute(self, user_id: str, token_type: str) -> VerificationToken:
+    def execute(self, user_id: str, token_type: str) -> VerificationResult:
         """Genera un token de verificación para un usuario.
 
         Args:
@@ -25,7 +26,7 @@ class GenerateVerificationToken:
             token_type: Tipo de token ("email_verification" o "password_reset")
 
         Returns:
-            VerificationToken entity
+            VerificationResult con success=True y user_id
 
         Raises:
             InvalidVerificationTokenError: Si token_type es inválido (validación en Entity)
@@ -37,7 +38,7 @@ class GenerateVerificationToken:
         expires_at = now + timedelta(hours=hours)
 
         # Crear token de verificación
-        verification_token = VerificationToken(
+        VerificationToken(
             id=str(uuid4()),
             user_id=user_id,
             token=str(uuid4()),  # Token único aleatorio
@@ -46,4 +47,4 @@ class GenerateVerificationToken:
             created_at=now
         )
 
-        return verification_token
+        return VerificationResult(success=True, user_id=user_id)

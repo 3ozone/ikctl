@@ -6,10 +6,12 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock
 import pytest
 
-from app.v1.auth.application.use_cases.enable_2fa import Enable2FA
+from app.v1.auth.application.commands.enable_2fa import Enable2FA
 from app.v1.auth.application.exceptions import ResourceNotFoundError
+from app.v1.auth.application.dtos.totp_setup import TOTPSetup
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
+from app.v1.auth.domain.events.two_fa_enabled import TwoFAEnabled
 
 
 @pytest.mark.asyncio
@@ -51,9 +53,10 @@ async def test_enable_2fa_success():
     )
     user_repository.update.assert_called_once()
 
-    # Verificar el resultado contiene secret y qr_code
-    assert result["secret"] == "BASE32SECRET123"
-    assert result["qr_code"] == "data:image/png;base64,iVBORw0KG..."
+    # Verificar el resultado es TOTPSetup con secret y qr_code_uri
+    assert isinstance(result, TOTPSetup)
+    assert result.secret == "BASE32SECRET123"
+    assert result.qr_code_uri == "data:image/png;base64,iVBORw0KG..."
 
     # Verificar que el usuario fue actualizado con el secret
     updated_user = user_repository.update.call_args[0][0]
@@ -83,3 +86,37 @@ async def test_enable_2fa_user_not_found():
     totp_provider.generate_secret.assert_not_called()
     totp_provider.generate_qr_code.assert_not_called()
     user_repository.update.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_enable_2fa_publishes_two_fa_enabled_event():
+    """Test: Enable2FA publica TwoFAEnabled tras habilitar 2FA."""
+    user_repository = AsyncMock()
+    totp_provider = Mock()
+    event_bus = AsyncMock()
+
+    existing_user = User(
+        id="user-123",
+        name="Test User",
+        email=Email("user@example.com"),
+        password_hash="hashed_password",
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    )
+    user_repository.find_by_id.return_value = existing_user
+    user_repository.update.return_value = None
+    totp_provider.generate_secret.return_value = "BASE32SECRET123"
+    totp_provider.generate_qr_code.return_value = "data:image/png;base64,abc"
+
+    use_case = Enable2FA(
+        user_repository=user_repository,
+        totp_provider=totp_provider,
+        event_bus=event_bus
+    )
+
+    await use_case.execute(user_id="user-123")
+
+    event_bus.publish.assert_called_once()
+    published_event = event_bus.publish.call_args[0][0]
+    assert isinstance(published_event, TwoFAEnabled)
+    assert published_event.aggregate_id == "user-123"

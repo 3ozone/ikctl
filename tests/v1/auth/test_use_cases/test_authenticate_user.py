@@ -5,16 +5,17 @@ import pytest
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
 from app.v1.auth.domain.exceptions import InvalidUserError
-from app.v1.auth.application.use_cases.hash_password import HashPassword
-from app.v1.auth.application.use_cases.verify_password import VerifyPassword
-from app.v1.auth.application.use_cases.authenticate_user import AuthenticateUser
+from app.v1.auth.application.dtos.user_profile import UserProfile
+from app.v1.auth.application.queries.hash_password import HashPassword
+from app.v1.auth.application.queries.verify_password import VerifyPassword
+from app.v1.auth.application.queries.authenticate_user import AuthenticateUser
 
 
 class TestAuthenticateUser:
     """Tests del Use Case AuthenticateUser."""
 
     def test_authenticate_user_success(self):
-        """Test 1: AuthenticateUser retorna el usuario si la contraseña es correcta."""
+        """Test 1: AuthenticateUser retorna UserProfile si la contraseña es correcta."""
         hash_uc = HashPassword()
         verify_uc = VerifyPassword()
         auth_uc = AuthenticateUser(verify_uc)
@@ -22,7 +23,6 @@ class TestAuthenticateUser:
         plaintext = "SecurePass123"
         hashed = hash_uc.execute(plaintext)
 
-        # Creamos un usuario con la contraseña hasheada
         user = User(
             id="user-123",
             name="John Doe",
@@ -32,14 +32,13 @@ class TestAuthenticateUser:
             updated_at=datetime.now(timezone.utc)
         )
 
-        # Autenticamos con la contraseña correcta
-        authenticated_user = auth_uc.execute(
-            plaintext_password=plaintext,
-            user=user
-        )
+        result = auth_uc.execute(plaintext_password=plaintext, user=user)
 
-        assert authenticated_user.id == user.id
-        assert authenticated_user.email.value == "john@example.com"
+        assert isinstance(result, UserProfile)
+        assert result.id == "user-123"
+        assert result.email == "john@example.com"
+        assert result.name == "John Doe"
+        assert result.is_2fa_enabled is False
 
     def test_authenticate_user_wrong_password(self):
         """Test 2: AuthenticateUser lanza InvalidUserError si la contraseña es incorrecta."""

@@ -10,16 +10,14 @@ class RevokeRefreshToken:
     Invalida un refresh token configurando su expiración al momento actual.
     """
 
-    def execute(self, refresh_token: RefreshToken) -> RefreshToken:
+    def execute(self, refresh_token: RefreshToken) -> None:
         """Revoca un refresh token haciéndolo expirar inmediatamente.
 
         Args:
             refresh_token: RefreshToken a revocar
 
         Returns:
-            RefreshToken modificado con expires_at = ahora
+            None
         """
         # Fijar la expiración al momento actual para invalidar el token
         refresh_token.expires_at = datetime.now(timezone.utc)
-
-        return refresh_token

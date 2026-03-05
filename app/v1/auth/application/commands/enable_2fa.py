@@ -1,9 +1,14 @@
 """Use Case: Habilitar autenticación de dos factores (2FA)."""
 from datetime import datetime, timezone
+from uuid import uuid4
+from typing import Optional
 
 from app.v1.auth.application.interfaces.user_repository import UserRepository
 from app.v1.auth.application.interfaces.totp_provider import TOTPProvider
 from app.v1.auth.application.exceptions import ResourceNotFoundError
+from app.v1.auth.application.dtos.totp_setup import TOTPSetup
+from app.v1.auth.domain.events.two_fa_enabled import TwoFAEnabled
+from app.v1.shared.application.interfaces.event_bus import EventBus
 
 
 class Enable2FA:
@@ -15,25 +20,21 @@ class Enable2FA:
     def __init__(
         self,
         user_repository: UserRepository,
-        totp_provider: TOTPProvider
+        totp_provider: TOTPProvider,
+        event_bus: Optional[EventBus] = None
     ) -> None:
-        """Constructor del use case.
-
-        Args:
-            user_repository: Repositorio para gestionar usuarios.
-            totp_provider: Proveedor para operaciones TOTP.
-        """
         self.user_repository = user_repository
         self.totp_provider = totp_provider
+        self._event_bus = event_bus
 
-    async def execute(self, user_id: str) -> dict[str, str]:
+    async def execute(self, user_id: str) -> TOTPSetup:
         """Habilita 2FA para un usuario.
 
         Args:
             user_id: ID del usuario.
 
         Returns:
-            Dict con 'secret' (base32) y 'qr_code' (data URI).
+            TOTPSetup con secret y qr_code_uri.
 
         Raises:
             ResourceNotFoundError: Si el usuario no existe.
@@ -55,16 +56,22 @@ class Enable2FA:
             issuer="ikctl"
         )
 
-        # Actualizar usuario con 2FA habilitado
-        user.totp_secret = secret
-        user.is_2fa_enabled = True
+        # Actualizar usuario con 2FA habilitado via entity command
+        user.enable_2fa(secret)
         user.updated_at = datetime.now(timezone.utc)
 
         # Persistir cambios
         await self.user_repository.update(user)
 
-        # Retornar datos para configurar app 2FA
-        return {
-            "secret": secret,
-            "qr_code": qr_code
-        }
+        if self._event_bus is not None:
+            await self._event_bus.publish(
+                TwoFAEnabled(user_id=user_id, correlation_id=str(uuid4()))
+            )
+
+        # Retornar DTO con datos para configurar app 2FA
+        return TOTPSetup(
+            secret=secret,
+            qr_code_uri=qr_code,
+            provisioning_uri="",
+            backup_codes=[]
+        )

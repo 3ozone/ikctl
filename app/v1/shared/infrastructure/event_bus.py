@@ -1,50 +1,21 @@
 """EventBus InMemory para MVP."""
-from abc import ABC, abstractmethod
 from typing import Dict, List
-import logging
 
 from app.v1.shared.domain.events import DomainEvent
+from app.v1.shared.application.interfaces.event_bus import EventBus, EventHandler
+from app.v1.shared.infrastructure.logger import get_logger
 
-logger = logging.getLogger(__name__)
-
-
-class EventHandler(ABC):
-    """
-    Interfaz para handlers de eventos de dominio.
-
-    Los handlers deben ser idempotentes: procesar el mismo evento
-    múltiples veces debe producir el mismo resultado (ADR-008).
-    """
-
-    @abstractmethod
-    async def handle(self, event: DomainEvent) -> None:
-        """
-        Procesar un evento de dominio.
-
-        Args:
-            event: Evento a procesar
-
-        Raises:
-            Exception: Los handlers pueden lanzar excepciones que serán loggeadas
-                       pero no detendrán otros handlers.
-        """
+logger = get_logger(__name__)
 
 
-class EventBus:
+class InMemoryEventBus(EventBus):
     """
     Event Bus InMemory para MVP.
 
-    Implementación sincrónica en mismo proceso. Los eventos se publican
-    y procesan inmediatamente por todos los handlers suscritos.
+    Implementación concreta del puerto EventBus.
+    Ejecuta handlers secuencialmente en el mismo proceso.
 
-    Características:
-    - Múltiples handlers por tipo de evento
-    - Handlers suscritos múltiples veces solo se llaman una vez
-    - Excepciones en handlers no detienen otros handlers
-    - Thread-safe para uso en aplicación async
-
-    Migración futura: Esta interface permite cambiar a Valkey Streams
-    sin modificar código de negocio (ADR-008 Fase 2).
+    Migración futura: cambiar a Valkey Streams sin modificar use cases (ADR-008).
     """
 
     def __init__(self) -> None:
@@ -98,40 +69,33 @@ class EventBus:
         handlers = self._subscribers.get(event.event_type, [])
 
         logger.info(
-            "Publishing event: %s",
-            event.event_type,
-            extra={
-                "event_id": event.event_id,
-                "correlation_id": event.correlation_id,
-                "aggregate_id": event.aggregate_id,
-                "handlers_count": len(handlers),
-            },
+            "event_published",
+            event_type=event.event_type,
+            event_id=event.event_id,
+            correlation_id=event.correlation_id,
+            aggregate_id=event.aggregate_id,
+            handlers_count=len(handlers),
         )
 
         for handler in handlers:
             try:
                 await handler.handle(event)
                 logger.debug(
-                    "Handler %s processed event %s",
-                    handler.__class__.__name__,
-                    event.event_type,
-                    extra={
-                        "event_id": event.event_id,
-                        "correlation_id": event.correlation_id,
-                    },
+                    "event_handled",
+                    handler=handler.__class__.__name__,
+                    event_type=event.event_type,
+                    event_id=event.event_id,
+                    correlation_id=event.correlation_id,
                 )
             except Exception as e:
                 # Log error pero continuar con otros handlers (test 5)
                 logger.error(
-                    "Handler %s failed for event %s: %s",
-                    handler.__class__.__name__,
-                    event.event_type,
-                    str(e),
-                    extra={
-                        "event_id": event.event_id,
-                        "correlation_id": event.correlation_id,
-                        "error": str(e),
-                    },
+                    "event_handler_failed",
+                    handler=handler.__class__.__name__,
+                    event_type=event.event_type,
+                    event_id=event.event_id,
+                    correlation_id=event.correlation_id,
+                    error=str(e),
                     exc_info=True,
                 )
 

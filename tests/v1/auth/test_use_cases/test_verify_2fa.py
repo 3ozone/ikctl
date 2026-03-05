@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock
 import pytest
 
-from app.v1.auth.application.use_cases.verify_2fa import Verify2FA
+from app.v1.auth.application.queries.verify_2fa import Verify2FA
 from app.v1.auth.application.exceptions import (
     ResourceNotFoundError,
     UnauthorizedOperationError

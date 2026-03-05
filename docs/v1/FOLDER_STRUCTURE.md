@@ -5,9 +5,25 @@
 ```bash
 app/v1/auth/
 ├── domain/                      # Capa Core (sin dependencias externas)
-│   ├── entities.py             # User, RefreshToken, VerificationToken
-│   ├── value_objects.py        # Email, Password, JWTToken
-│   └── exceptions.py           # DomainException, InvalidEmailError
+│   ├── entities/               # Un archivo por entity
+│   │   ├── __init__.py         # Re-exporta User, RefreshToken, VerificationToken, PasswordHistory
+│   │   ├── user.py             # Entity User (comandos, queries, __eq__ por id)
+│   │   ├── refresh_token.py    # Entity RefreshToken
+│   │   ├── verification_token.py  # Entity VerificationToken
+│   │   └── password_history.py # Entity PasswordHistory
+│   ├── value_objects/          # Un archivo por Value Object
+│   │   ├── __init__.py         # Re-exporta Email, Password, JWTToken
+│   │   ├── email.py            # VO Email (normalized, domain)
+│   │   ├── password.py         # VO Password
+│   │   └── jwt_token.py        # VO JWTToken (get_user_id, is_expired, ...)
+│   ├── exceptions/             # Un archivo por grupo de errores
+│   │   ├── __init__.py         # Re-exporta todas las excepciones
+│   │   ├── email.py            # InvalidEmailError
+│   │   ├── password.py         # InvalidPasswordError
+│   │   ├── user.py             # InvalidUserError, UserNotFoundError, UserAlreadyExistsError
+│   │   └── token.py            # InvalidJWTTokenError, InvalidRefreshTokenError, ...
+│   └── events/                 # Un archivo por evento de dominio
+│       └── __init__.py         # (eventos concretos se añaden en T-28.18)
 │
 ├── application/                 # Capa de Casos de Uso
 │   ├── exceptions.py           # UseCaseException, UnauthorizedOperationError
@@ -48,9 +64,11 @@ app/v1/auth/
 ### Domain (Capa Core)
 
 - **Sin dependencias** de otras capas o frameworks
-- **Entities**: Lógica de negocio, invariantes
-- **Value Objects**: Objetos inmutables con validaciones
-- **Exceptions**: Errores de dominio
+- **`entities/`**: Un archivo por entity. Lógica de negocio, comandos, queries, `__eq__` por `id`
+- **`value_objects/`**: Un archivo por VO. Objetos inmutables (`frozen=True`) con validaciones y comportamiento
+- **`exceptions/`**: Un archivo por grupo de errores. Jerarquía desde `DomainException` (shared)
+- **`events/`**: Un archivo por evento de dominio. Hechos de negocio ocurridos
+- Cada subcarpeta tiene `__init__.py` que re-exporta todos los símbolos → los imports externos no cambian
 
 ### Application (Casos de Uso)
 

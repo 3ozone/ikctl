@@ -5,7 +5,8 @@ from uuid import uuid4
 import pytest
 
 from app.v1.shared.domain.events import DomainEvent
-from app.v1.shared.infrastructure.event_bus import EventBus, EventHandler
+from app.v1.shared.application.interfaces.event_bus import EventHandler
+from app.v1.shared.infrastructure.event_bus import InMemoryEventBus
 
 
 class TestEventBus:
@@ -14,7 +15,7 @@ class TestEventBus:
     @pytest.mark.asyncio
     async def test_publish_event_without_subscribers(self):
         """Test 1: Publicar evento sin suscriptores no causa error."""
-        event_bus = EventBus()
+        event_bus = InMemoryEventBus()
 
         event = DomainEvent(
             event_id=str(uuid4()),
@@ -34,7 +35,7 @@ class TestEventBus:
     @pytest.mark.asyncio
     async def test_subscribe_and_publish_calls_handler(self):
         """Test 2: Handler suscrito es llamado cuando se publica evento."""
-        event_bus = EventBus()
+        event_bus = InMemoryEventBus()
         handler = AsyncMock(spec=EventHandler)
 
         event_bus.subscribe("UserRegistered", handler)
@@ -58,7 +59,7 @@ class TestEventBus:
     @pytest.mark.asyncio
     async def test_multiple_handlers_same_event_type(self):
         """Test 3: Múltiples handlers para mismo tipo de evento son llamados."""
-        event_bus = EventBus()
+        event_bus = InMemoryEventBus()
         handler1 = AsyncMock(spec=EventHandler)
         handler2 = AsyncMock(spec=EventHandler)
         handler3 = AsyncMock(spec=EventHandler)
@@ -88,7 +89,7 @@ class TestEventBus:
     @pytest.mark.asyncio
     async def test_unsubscribe_handler(self):
         """Test 4: Handler desuscrito no es llamado."""
-        event_bus = EventBus()
+        event_bus = InMemoryEventBus()
         handler = AsyncMock(spec=EventHandler)
 
         event_bus.subscribe("UserRegistered", handler)
@@ -113,7 +114,7 @@ class TestEventBus:
     @pytest.mark.asyncio
     async def test_handler_exception_does_not_stop_other_handlers(self):
         """Test 5: Excepción en un handler no detiene otros handlers."""
-        event_bus = EventBus()
+        event_bus = InMemoryEventBus()
         handler1 = AsyncMock(spec=EventHandler)
         handler2 = AsyncMock(spec=EventHandler)
         handler3 = AsyncMock(spec=EventHandler)
@@ -148,7 +149,7 @@ class TestEventBus:
     @pytest.mark.asyncio
     async def test_different_event_types_different_handlers(self):
         """Test 6: Cada tipo de evento llama solo a sus handlers correspondientes."""
-        event_bus = EventBus()
+        event_bus = InMemoryEventBus()
         user_handler = AsyncMock(spec=EventHandler)
         password_handler = AsyncMock(spec=EventHandler)
 
@@ -175,7 +176,7 @@ class TestEventBus:
     @pytest.mark.asyncio
     async def test_subscribe_same_handler_multiple_times_only_called_once(self):
         """Test 7: Handler suscrito múltiples veces solo es llamado una vez."""
-        event_bus = EventBus()
+        event_bus = InMemoryEventBus()
         handler = AsyncMock(spec=EventHandler)
 
         # Suscribir el mismo handler 3 veces
@@ -203,7 +204,7 @@ class TestEventBus:
     @pytest.mark.asyncio
     async def test_unsubscribe_nonexistent_handler_does_not_error(self):
         """Test 8: Desuscribir handler no registrado no causa error."""
-        event_bus = EventBus()
+        event_bus = InMemoryEventBus()
         handler = AsyncMock(spec=EventHandler)
 
         # No debe lanzar excepción
@@ -212,7 +213,7 @@ class TestEventBus:
     @pytest.mark.asyncio
     async def test_get_subscribers_returns_handlers(self):
         """Test 9: get_subscribers retorna lista de handlers para un evento."""
-        event_bus = EventBus()
+        event_bus = InMemoryEventBus()
         handler1 = AsyncMock(spec=EventHandler)
         handler2 = AsyncMock(spec=EventHandler)
 
@@ -228,7 +229,7 @@ class TestEventBus:
     @pytest.mark.asyncio
     async def test_get_subscribers_empty_when_no_handlers(self):
         """Test 10: get_subscribers retorna lista vacía si no hay handlers."""
-        event_bus = EventBus()
+        event_bus = InMemoryEventBus()
 
         subscribers = event_bus.get_subscribers("NonExistentEvent")
 

@@ -2,8 +2,7 @@
 from datetime import datetime, timezone
 
 from app.v1.auth.domain.entities import User, VerificationToken
-from app.v1.auth.application.use_cases.hash_password import HashPassword
-from app.v1.auth.domain.exceptions import InvalidVerificationTokenError
+from app.v1.auth.application.queries.hash_password import HashPassword
 
 
 class ResetPassword:
@@ -20,7 +19,7 @@ class ResetPassword:
         """
         self.hash_password = hash_password
 
-    def execute(self, user: User, reset_token: VerificationToken, new_password: str) -> User:
+    def execute(self, user: User, reset_token: VerificationToken, new_password: str) -> None:
         """Resetea la contraseña de un usuario.
 
         Args:
@@ -29,7 +28,7 @@ class ResetPassword:
             new_password: Nueva contraseña en texto plano
 
         Returns:
-            Usuario actualizado con la nueva contraseña hasheada
+            None
 
         Raises:
             InvalidVerificationTokenError: Si el token es inválido o ha expirado
@@ -42,8 +41,6 @@ class ResetPassword:
         # Hashear la nueva contraseña (Password VO valida en su __post_init__)
         new_password_hash = self.hash_password.execute(new_password)
 
-        # Actualizar el usuario con la nueva contraseña hasheada
-        user.password_hash = new_password_hash
+        # Actualizar el usuario con la nueva contraseña hasheada via entity command
+        user.update_password(new_password_hash)
         user.updated_at = datetime.now(timezone.utc)
-
-        return user

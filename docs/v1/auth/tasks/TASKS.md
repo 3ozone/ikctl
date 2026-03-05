@@ -80,52 +80,52 @@
 ### Entities
 
 - [x] **T-28.3**: `User` — añadir campo `is_verified: bool = False` y comandos: `enable_2fa(secret)`, `disable_2fa()`, `verify_email()`, `update_name(name)`, `update_password(new_hash)` y queries: `is_verified()`, `is_2fa_required()`, `has_oauth_password()`. Añadir `__eq__` por `id`.
-- [ ] **T-28.4**: `RefreshToken` — añadir `.is_expired() -> bool` y `__eq__` por `id`
-- [ ] **T-28.5**: `VerificationToken` — añadir `__eq__` por `id`
-- [ ] **T-28.6**: `PasswordHistory` — añadir `__eq__` por `id`
+- [x] **T-28.4**: `RefreshToken` — añadir `.is_expired() -> bool` y `__eq__` por `id`
+- [x] **T-28.5**: `VerificationToken` — añadir `__eq__` por `id`
+- [x] **T-28.6**: `PasswordHistory` — añadir `__eq__` por `id`
 
 ### Use Cases → DTOs (aislamiento de capas)
 
-- [ ] **T-28.7**: `RegisterUser` — devolver `RegistrationResult` en lugar de `User`
-- [ ] **T-28.8**: `AuthenticateUser` — devolver `AuthenticationResult` en lugar de `User`
-- [ ] **T-28.9**: `AuthenticateWithGitHub` — devolver `AuthenticationResult` en lugar de `dict`
-- [ ] **T-28.10**: `CreateTokens` — devolver `TokenPair` en lugar de `dict`
-- [ ] **T-28.11**: `ChangePassword` — devolver `PasswordChangeResult` en lugar de `User`
-- [ ] **T-28.12**: `ResetPassword` — devolver `None` en lugar de `User`
-- [ ] **T-28.13**: `RequestPasswordReset` — devolver `VerificationResult` en lugar de `VerificationToken`
-- [ ] **T-28.14**: `GenerateVerificationToken` — devolver `VerificationResult` en lugar de `VerificationToken`
-- [ ] **T-28.15**: `RevokeRefreshToken` — devolver `None` en lugar de `RefreshToken`
-- [ ] **T-28.16**: `Enable2FA` — devolver `TOTPSetup` en lugar de `dict`
+- [x] **T-28.7**: `RegisterUser` — devolver `RegistrationResult` en lugar de `User`
+- [x] **T-28.8**: `AuthenticateUser` — devolver `UserProfile` en lugar de `User` (solo verifica contraseña, no crea tokens)
+- [x] **T-28.9**: `AuthenticateWithGitHub` — devolver `AuthenticationResult` en lugar de `dict`
+- [x] **T-28.10**: `CreateTokens` — devolver `TokenPair` en lugar de `dict`
+- [x] **T-28.11**: `ChangePassword` — devolver `PasswordChangeResult` en lugar de `User`
+- [x] **T-28.12**: `ResetPassword` — devolver `None` en lugar de `User`
+- [x] **T-28.13**: `RequestPasswordReset` — devolver `VerificationResult` en lugar de `VerificationToken`
+- [x] **T-28.14**: `GenerateVerificationToken` — devolver `VerificationResult` en lugar de `VerificationToken`
+- [x] **T-28.15**: `RevokeRefreshToken` — devolver `None` en lugar de `RefreshToken`
+- [x] **T-28.16**: `Enable2FA` — devolver `TOTPSetup` en lugar de `dict`
 
 ### Use Cases → encapsular mutaciones en entity commands
 
-- [ ] **T-28.17**: Sustituir mutaciones directas en use cases (`user.is_2fa_enabled = True`, `user.totp_secret = ...`, etc.) por llamadas a los métodos de entity añadidos en T-28.3
+- [x] **T-28.17**: Sustituir mutaciones directas en use cases (`user.is_2fa_enabled = True`, `user.totp_secret = ...`, etc.) por llamadas a los métodos de entity añadidos en T-28.3
 
 ### Eventos de dominio (auth)
 
-- [ ] **T-28.18**: Crear `app/v1/auth/domain/events.py` con eventos concretos: `UserRegistered`, `EmailVerified`, `PasswordChanged`, `UserLoggedIn`, `TwoFAEnabled`, `TwoFADisabled` (heredan de `DomainEvent`)
-- [ ] **T-28.19**: Use cases publican eventos vía `EventBus` **después de `await repository.save()`**: `RegisterUser` → `UserRegistered`, `VerifyEmail` → `EmailVerified`, `ChangePassword` → `PasswordChanged`, `Enable2FA` → `TwoFAEnabled`, `Disable2FA` → `TwoFADisabled`
+- [x] **T-28.18**: Crear eventos concretos en `app/v1/auth/domain/events/` (un fichero por evento): `user_registered.py`, `email_verified.py`, `password_changed.py`, `user_logged_in.py`, `two_fa_enabled.py`, `two_fa_disabled.py` (heredan de `DomainEvent`) y re-exportar desde `events/__init__.py`
+- [x] **T-28.19**: Use cases publican eventos vía `EventBus` **después de `await repository.save()`**: `RegisterUser` → `UserRegistered`, `VerifyEmail` → `EmailVerified`, `ChangePassword` → `PasswordChanged`, `Enable2FA` → `TwoFAEnabled`, `Disable2FA` → `TwoFADisabled`
 
 ### CQRS — Separación Commands/Queries
 
-- [ ] **T-28.31**: Crear `application/commands/` y `application/queries/` con sus `__init__.py`
-- [ ] **T-28.32**: Mover a `application/commands/`: `register_user`, `verify_email`, `change_password`, `reset_password`, `request_password_reset`, `generate_verification_token`, `revoke_refresh_token`, `enable_2fa`, `disable_2fa`, `update_user_profile`, `create_tokens`, `refresh_access_token`, `authenticate_with_github`
-- [ ] **T-28.33**: Mover a `application/queries/`: `authenticate_user`, `verify_access_token`, `verify_password`, `hash_password`, `get_user_profile`, `verify_2fa`
-- [ ] **T-28.34**: Actualizar imports en tests y todos los archivos afectados por el cambio de ruta
+- [x] **T-28.31**: Crear `application/commands/` y `application/queries/` con sus `__init__.py` ✅
+- [x] **T-28.32**: Mover a `application/commands/`: `register_user`, `verify_email`, `change_password`, `reset_password`, `request_password_reset`, `generate_verification_token`, `revoke_refresh_token`, `enable_2fa`, `disable_2fa`, `update_user_profile`, `create_tokens`, `refresh_access_token`, `authenticate_with_github` ✅
+- [x] **T-28.33**: Mover a `application/queries/`: `authenticate_user`, `verify_access_token`, `verify_password`, `hash_password`, `get_user_profile`, `verify_2fa` ✅
+- [x] **T-28.34**: Actualizar imports en tests y todos los archivos afectados por el cambio de ruta ✅
 
 ### Reestructuración `shared/` (Clean Architecture)
 
-- [ ] **T-28.23**: Crear `shared/application/` con `__init__.py` e `interfaces/`
-- [ ] **T-28.24**: Crear `shared/application/interfaces/event_bus.py` con `EventBus` ABC (puerto: método `publish`) y `EventHandler` ABC (método `handle`) — mover desde `shared/infrastructure/event_bus.py`
-- [ ] **T-28.25**: Renombrar implementación concreta: `EventBus` → `InMemoryEventBus` en `shared/infrastructure/event_bus.py`, que hereda del puerto
-- [ ] **T-28.26**: Actualizar imports en todos los archivos que usen `EventBus` o `EventHandler` (use cases, tests, main.py)
-- [ ] **T-28.27**: Actualizar tests de `shared/` afectados por el renombrado
+- [x] **T-28.23**: Crear `shared/application/` con `__init__.py` e `interfaces/`
+- [x] **T-28.24**: Crear `shared/application/interfaces/event_bus.py` con `EventBus` ABC (puerto: método `publish`) y `EventHandler` ABC (método `handle`) — mover desde `shared/infrastructure/event_bus.py`
+- [x] **T-28.25**: Renombrar implementación concreta: `EventBus` → `InMemoryEventBus` en `shared/infrastructure/event_bus.py`, que hereda del puerto
+- [x] **T-28.26**: Actualizar imports en todos los archivos que usen `EventBus` o `EventHandler` (use cases, tests, main.py)
+- [x] **T-28.27**: Actualizar tests de `shared/` afectados por el renombrado
 
 ### Tests
 
-- [ ] **T-28.28**: Actualizar tests de domain afectados por nuevos métodos en entities/VOs
-- [ ] **T-28.29**: Actualizar tests de use cases afectados por cambio de tipos de retorno a DTOs
-- [ ] **T-28.30**: Ejecutar suite completa de tests (187+ tests GREEN)
+- [x] **T-28.28**: Actualizar tests de domain afectados por nuevos métodos en entities/VOs ✅
+- [x] **T-28.29**: Actualizar tests de use cases afectados por cambio de tipos de retorno a DTOs ✅
+- [x] **T-28.30**: Ejecutar suite completa de tests — 236 tests GREEN ✅
 
   **FASE 2.6 PENDIENTE: 30 tareas — bloquea Fase 4 (presentación necesita DTOs, no entities)**
 
@@ -144,16 +144,16 @@
 
 ### Configuración & Composition Root
 
-- [ ] **T-34.0**: Crear `config/settings.py` con Pydantic `BaseSettings` — centraliza todas las variables de entorno (DB_URL, JWT_SECRET, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, VALKEY_URL, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, CORS_ORIGINS). Los adaptadores reciben los valores por inyección en el Composition Root (`main.py`), nunca importan `settings` directamente.
-- [ ] **T-34.0.1**: Implementar Composition Root en `main.py` — instanciar con lifetimes correctos: **Singleton** (`InMemoryEventBus`, `ValkeyRateLimiter`, `ValkeyLoginAttemptTracker`, `AiosmtplibEmailService`, `PyJWTProvider`, `PyOTPTOTPProvider`, `HttpxGitHubOAuth`, `Settings`), **Scoped** (`AsyncSession`, todos los `SQLAlchemy*` repositories, use cases que dependen de repositories). Session scoped via `Depends(get_db_session)` de FastAPI. Sin Factory pattern ni UoW explícito — `AsyncSession` actúa como UoW.
+- [x] **T-34.0**: Crear `config/settings.py` con Pydantic `BaseSettings` — centraliza todas las variables de entorno (DB_URL, JWT_SECRET, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, VALKEY_URL, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, CORS_ORIGINS). Los adaptadores reciben los valores por inyección en el Composition Root (`main.py`), nunca importan `settings` directamente.
+- [x] **T-34.0.1**: Implementar Composition Root en `main.py` — instanciar con lifetimes correctos: **Singleton** (`InMemoryEventBus`, `ValkeyRateLimiter`, `ValkeyLoginAttemptTracker`, `AiosmtplibEmailService`, `PyJWTProvider`, `PyOTPTOTPProvider`, `HttpxGitHubOAuth`, `Settings`), **Scoped** (`AsyncSession`, todos los `SQLAlchemy*` repositories, use cases que dependen de repositories). Session scoped via `Depends(get_db_session)` de FastAPI. Sin Factory pattern ni UoW explícito — `AsyncSession` actúa como UoW.
 
 ### Shared Module (Infraestructura Transversal)
 
 - [x] **T-34.1**: Implementar `shared/domain/events.py` (DomainEvent base class: event_id, correlation_id, version, occurred_at, metadata) - 10 tests ✅ (Validaciones UUID, strings no vacíos, UTC datetime, version >= 1, serialización to_dict/from_dict, ADR-008)
 - [x] **T-34.2**: Implementar `shared/infrastructure/event_bus.py` (EventBus InMemory sincrónico con publish/subscribe) - 10 tests ✅ (EventHandler ABC, múltiples handlers, unsubscribe, resiliencia a excepciones, get_subscribers, logging estructurado, ADR-008 Fase 1)
 - [x] **T-34.2.1**: Refactorizar excepciones auth para heredar de shared (DomainException, InfrastructureException en shared/domain y shared/infrastructure) ✅
-- [ ] **T-34.3**: Implementar `shared/infrastructure/logger.py` (structlog configurado con JSON output y context injection) — **desacoplado de application**: los use cases no saben que existe un logger. El logging ocurre exclusivamente en: middleware FastAPI (request/response + correlation_id), EventBus (eventos publicados/consumidos, ya implementado), adaptadores/repositories (operaciones externas) y exception handlers (errores con contexto)
-- [ ] **T-34.4**: Implementar `shared/infrastructure/database.py` (session factory con async support para SQLAlchemy)
+- [x] **T-34.3**: Implementar `shared/infrastructure/logger.py` (structlog configurado con JSON output y context injection) — **desacoplado de application**: los use cases no saben que existe un logger. El logging ocurre exclusivamente en: middleware FastAPI (request/response + correlation_id), EventBus (eventos publicados/consumidos, ya implementado), adaptadores/repositories (operaciones externas) y exception handlers (errores con contexto)
+- [x] **T-34.4**: Implementar `shared/infrastructure/database.py` (session factory con async support para SQLAlchemy)
 - [ ] **T-34.5**: Implementar `shared/infrastructure/cache.py` (Valkey client wrapper con operaciones básicas)
 
 ### Database Migrations (Alembic)

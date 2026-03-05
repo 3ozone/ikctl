@@ -5,7 +5,7 @@ import pytest
 
 from app.v1.auth.domain.value_objects import Email
 from app.v1.auth.domain.entities import User
-from app.v1.auth.application.use_cases.get_user_profile import GetUserProfile
+from app.v1.auth.application.queries.get_user_profile import GetUserProfile
 from app.v1.auth.application.dtos.user_profile import UserProfile
 from app.v1.auth.application.exceptions import ResourceNotFoundError
 

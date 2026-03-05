@@ -36,8 +36,8 @@ class UpdateUserProfile:
                 f"Usuario con ID {user_id} no encontrado"
             )
 
-        # Actualizar nombre y timestamp
-        user.name = new_name
+        # Actualizar nombre via entity command
+        user.update_name(new_name)
         user.updated_at = datetime.now(timezone.utc)
 
         # Persistir cambios
