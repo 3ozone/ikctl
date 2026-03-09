@@ -28,7 +28,7 @@ class User:
         if not self.id or not isinstance(self.id, str):
             raise InvalidUserError("El ID del usuario no puede estar vacío")
 
-        if not self.name or not isinstance(self.name, str):
+        if not isinstance(self.name, str) or not self.name.strip():
             raise InvalidUserError(
                 "El nombre del usuario no puede estar vacío")
 

@@ -18,6 +18,8 @@ class UserModel(Base):
     totp_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_2fa_enabled: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False)
+    is_email_verified: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 

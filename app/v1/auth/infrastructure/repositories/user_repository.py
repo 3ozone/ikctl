@@ -1,12 +1,13 @@
 """SQLAlchemyUserRepository - Implementación SQLAlchemy de UserRepository."""
 from typing import Optional
 from sqlalchemy import select, delete
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
 from app.v1.auth.application.interfaces.user_repository import UserRepository
-from app.v1.auth.application.exceptions import ResourceNotFoundError
+from app.v1.auth.application.exceptions import EmailAlreadyExistsError, ResourceNotFoundError
 from app.v1.auth.infrastructure.persistence.models import UserModel
 from app.v1.auth.infrastructure.exceptions import InfrastructureException
 
@@ -42,6 +43,7 @@ class SQLAlchemyUserRepository(UserRepository):
                 password_hash=user.password_hash,
                 totp_secret=user.totp_secret,
                 is_2fa_enabled=user.is_2fa_enabled,
+                is_email_verified=user.is_email_verified,
                 created_at=user.created_at,
                 updated_at=user.updated_at
             )
@@ -52,6 +54,10 @@ class SQLAlchemyUserRepository(UserRepository):
 
             return self._model_to_entity(user_model)
 
+        except IntegrityError as e:
+            await self._session.rollback()
+            raise EmailAlreadyExistsError(
+                "El email ya está registrado.") from e
         except Exception as e:
             await self._session.rollback()
             raise InfrastructureException(
@@ -134,6 +140,7 @@ class SQLAlchemyUserRepository(UserRepository):
             user_model.password_hash = user.password_hash
             user_model.totp_secret = user.totp_secret
             user_model.is_2fa_enabled = user.is_2fa_enabled
+            user_model.is_email_verified = user.is_email_verified
             user_model.updated_at = user.updated_at
 
             await self._session.commit()
@@ -199,6 +206,7 @@ class SQLAlchemyUserRepository(UserRepository):
             password_hash=model.password_hash,
             totp_secret=model.totp_secret,
             is_2fa_enabled=model.is_2fa_enabled,
+            is_email_verified=model.is_email_verified,
             created_at=model.created_at,
             updated_at=model.updated_at
         )

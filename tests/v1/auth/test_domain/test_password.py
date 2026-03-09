@@ -36,8 +36,8 @@ class TestPassword:
     def test_password_immutable(self):
         """Test 6: Password es inmutable (frozen=True)."""
         password = Password("SecurePass123")
-        with pytest.raises(Exception):  # FrozenInstanceError
-            password.value = "OtherPass123"
+        with pytest.raises(Exception):  # FrozenInstanceError en runtime
+            setattr(password, "value", "OtherPass123")
 
     def test_password_equality(self):
         """Test 7: Dos passwords iguales son iguales."""
@@ -50,3 +50,24 @@ class TestPassword:
         pwd1 = Password("SecurePass123")
         pwd2 = Password("OtherPass123")
         assert pwd1 != pwd2
+
+    def test_password_exactly_minimum_length_is_valid(self):
+        """Test 9: Password de exactamente 8 caracteres (límite mínimo) es válido."""
+        password = Password("Secure1A")  # exactamente 8 chars
+        assert password.value == "Secure1A"
+
+    def test_password_empty_string_raises_error(self):
+        """Test 10: Password vacío lanza InvalidPasswordError."""
+        with pytest.raises(InvalidPasswordError):
+            Password("")
+
+    def test_password_one_char_below_minimum_raises_error(self):
+        """Test 11: Password de 7 caracteres (un menos del mínimo) lanza InvalidPasswordError."""
+        with pytest.raises(InvalidPasswordError):
+            Password("Sec1234")  # 7 chars
+
+    def test_password_usable_as_dict_key(self):
+        """Test 12: Password es hashable y puede usarse como clave de diccionario."""
+        pwd = Password("SecurePass123")
+        mapping = {pwd: True}
+        assert mapping[pwd] is True

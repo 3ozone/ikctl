@@ -17,6 +17,8 @@ from app.v1.auth.infrastructure.adapters.email_service import AiosmtplibEmailSer
 from app.v1.auth.infrastructure.adapters.github_oauth import HttpxGitHubOAuth
 from app.v1.auth.infrastructure.adapters.jwt_provider import PyJWTProvider
 from app.v1.auth.infrastructure.adapters.totp_provider import PyOTPTOTPProvider
+from app.v1.auth.infrastructure.presentation.middlewares import AuthenticationMiddleware, SecurityHeadersMiddleware
+from app.v1.auth.infrastructure.presentation.exception_handlers import register_exception_handlers
 from app.v1.auth.infrastructure.repositories.password_history_repository import (
     SQLAlchemyPasswordHistoryRepository,
 )
@@ -35,6 +37,8 @@ from app.v1.shared.infrastructure.database import (
     create_session_factory,
     get_db_session,
 )
+from app.v1.shared.infrastructure.cache import create_valkey_client, close_valkey_client
+from app.v1.auth.infrastructure.presentation.routes import router as auth_router
 
 # ---------------------------------------------------------------------------
 # Singleton: Settings
@@ -76,9 +80,8 @@ github_oauth = HttpxGitHubOAuth(
 
 # ---------------------------------------------------------------------------
 # Singleton: Valkey-backed services
-# TODO T-34.5 — reemplazar None por el cliente Valkey real (shared/infrastructure/cache.py)
 # ---------------------------------------------------------------------------
-_valkey_client = None  # noqa: placeholder hasta T-34.5
+_valkey_client = create_valkey_client(settings.VALKEY_URL)
 rate_limiter = ValkeyRateLimiter(valkey_client=_valkey_client)
 login_attempt_tracker = ValkeyLoginAttemptTracker(valkey_client=_valkey_client)
 
@@ -132,10 +135,19 @@ def get_password_history_repository(
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa: ANN001
     """Gestiona arranque y parada de la aplicación."""
-    # Startup — los singletons ya están instanciados en módulo
+    # Startup — depositar singletons en app.state para que deps.py los consuma
+    app.state.event_bus = event_bus
+    app.state.jwt_provider = jwt_provider
+    app.state.email_service = email_service
+    app.state.totp_provider = totp_provider
+    app.state.github_oauth = github_oauth
+    app.state.rate_limiter = rate_limiter
+    app.state.login_attempt_tracker = login_attempt_tracker
+    app.state.session_factory = _session_factory
     yield
     # Shutdown
     await _engine.dispose()
+    await close_valkey_client(_valkey_client)
 
 
 # ---------------------------------------------------------------------------
@@ -152,6 +164,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # SecurityHeadersMiddleware se añade primero (más interno) — aplica a todas las respuestas
+    app.add_middleware(SecurityHeadersMiddleware)
+    # AuthenticationMiddleware envuelve los endpoints protegidos
+    app.add_middleware(AuthenticationMiddleware, jwt_provider=jwt_provider)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -159,6 +176,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    register_exception_handlers(app)
 
     # Health checks
     @app.get("/")
@@ -180,9 +199,8 @@ def create_app() -> FastAPI:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-    # TODO T-34+ — incluir routers
-    # from app.v1.auth.infrastructure.presentation.routes import router as auth_router
-    # app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
+    # T-34+ — routers auth
+    app.include_router(auth_router)
 
     return app
 

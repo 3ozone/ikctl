@@ -67,6 +67,21 @@ class TestRegisterUser:
             )
 
     @pytest.mark.asyncio
+    async def test_register_user_whitespace_name_raises_error(self):
+        """Test 5: RegisterUser lanza InvalidUserError si el nombre es solo espacios en blanco."""
+        hash_uc = HashPassword()
+        register_uc = RegisterUser()
+
+        hashed = hash_uc.execute("SecurePass123")
+
+        with pytest.raises(InvalidUserError):
+            await register_uc.execute(
+                name="   ",  # Solo espacios en blanco
+                email="john@example.com",
+                password_hash=hashed
+            )
+
+    @pytest.mark.asyncio
     async def test_register_user_publishes_user_registered_event(self):
         """Test 4: RegisterUser publica UserRegistered tras crear el usuario."""
         hash_uc = HashPassword()

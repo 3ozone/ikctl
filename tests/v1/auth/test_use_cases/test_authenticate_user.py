@@ -40,6 +40,32 @@ class TestAuthenticateUser:
         assert result.name == "John Doe"
         assert result.is_2fa_enabled is False
 
+    def test_authenticate_user_with_2fa_enabled_returns_profile_with_2fa_true(self):
+        """Test 3: AuthenticateUser retorna UserProfile con is_2fa_enabled=True si el usuario tiene 2FA activado."""
+        hash_uc = HashPassword()
+        verify_uc = VerifyPassword()
+        auth_uc = AuthenticateUser(verify_uc)
+
+        plaintext = "SecurePass123"
+        hashed = hash_uc.execute(plaintext)
+
+        user = User(
+            id="user-2fa",
+            name="Jane 2FA",
+            email=Email("jane@example.com"),
+            password_hash=hashed,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            totp_secret="BASE32SECRETKEY",
+            is_2fa_enabled=True,
+        )
+
+        result = auth_uc.execute(plaintext_password=plaintext, user=user)
+
+        assert isinstance(result, UserProfile)
+        assert result.id == "user-2fa"
+        assert result.is_2fa_enabled is True
+
     def test_authenticate_user_wrong_password(self):
         """Test 2: AuthenticateUser lanza InvalidUserError si la contraseña es incorrecta."""
         hash_uc = HashPassword()

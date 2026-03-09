@@ -1,6 +1,6 @@
 """Entity RefreshToken."""
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.v1.auth.domain.exceptions import InvalidRefreshTokenError
 
@@ -49,4 +49,4 @@ class RefreshToken:
         Returns:
             True si expires_at está en el pasado, False si aún es válido.
         """
-        return datetime.now() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at

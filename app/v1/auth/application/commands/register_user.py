@@ -1,11 +1,11 @@
 """Use Case para registrar un nuevo usuario."""
 from uuid import uuid4
 from datetime import datetime, timezone
-from typing import Optional
 
 from app.v1.auth.domain.entities import User
 from app.v1.auth.domain.value_objects import Email
 from app.v1.auth.application.dtos.registration_result import RegistrationResult
+from app.v1.auth.application.interfaces.user_repository import UserRepository
 from app.v1.auth.domain.events.user_registered import UserRegistered
 from app.v1.shared.application.interfaces.event_bus import EventBus
 
@@ -13,8 +13,13 @@ from app.v1.shared.application.interfaces.event_bus import EventBus
 class RegisterUser:
     """Use Case para registrar un nuevo usuario en el sistema."""
 
-    def __init__(self, event_bus: Optional[EventBus] = None) -> None:
+    def __init__(
+        self,
+        event_bus: EventBus | None = None,
+        user_repository: UserRepository | None = None,
+    ) -> None:
         self._event_bus = event_bus
+        self._user_repository = user_repository
 
     async def execute(self, name: str, email: str, password_hash: str) -> RegistrationResult:
         """Registra un nuevo usuario.
@@ -42,6 +47,9 @@ class RegisterUser:
             created_at=now,
             updated_at=now
         )
+
+        if self._user_repository is not None:
+            await self._user_repository.save(user)
 
         if self._event_bus is not None:
             await self._event_bus.publish(

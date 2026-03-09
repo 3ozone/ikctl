@@ -1,7 +1,6 @@
 """Tests para Value Object JWT Token."""
 from datetime import datetime, timezone
 import pytest
-from typing import Dict, Any
 
 from app.v1.auth.domain.value_objects import JWTToken
 from app.v1.auth.domain.exceptions import InvalidJWTTokenError
@@ -60,8 +59,8 @@ class TestJWTToken:
             token_type="access"
         )
 
-        with pytest.raises(Exception):  # FrozenInstanceError
-            jwt_token.token = "new_token"
+        with pytest.raises(Exception):  # FrozenInstanceError en runtime
+            setattr(jwt_token, "token", "new_token")
 
     def test_jwt_token_equality(self):
         """Test 6: Dos JWT Tokens con mismos valores son iguales."""
@@ -179,3 +178,25 @@ class TestJWTToken:
         )
 
         assert token.is_refresh_token() is False
+
+    def test_get_user_id_missing_key_raises_key_error(self):
+        """Test 16: get_user_id() lanza KeyError si 'user_id' no está en el payload."""
+        token = JWTToken(
+            token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            payload={"sub": "123"},  # 'user_id' ausente
+            token_type="access"
+        )
+
+        with pytest.raises(KeyError):
+            token.get_user_id()
+
+    def test_refresh_token_is_not_access_token(self):
+        """Test 17: token de tipo 'refresh' no es access y sí es refresh."""
+        token = JWTToken(
+            token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            payload={"user_id": "123"},
+            token_type="refresh"
+        )
+
+        assert token.is_access_token() is False
+        assert token.is_refresh_token() is True

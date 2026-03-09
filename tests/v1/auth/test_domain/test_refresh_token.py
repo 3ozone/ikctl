@@ -1,5 +1,5 @@
 """Tests para Entity RefreshToken."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.v1.auth.domain.entities import RefreshToken
@@ -105,8 +105,8 @@ class TestRefreshToken:
             id="token-123",
             user_id="user-456",
             token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-            expires_at=datetime.now() - timedelta(seconds=1),
-            created_at=datetime.now() - timedelta(days=7)
+            expires_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+            created_at=datetime.now(timezone.utc) - timedelta(days=7)
         )
 
         assert refresh_token.is_expired() is True
@@ -117,8 +117,8 @@ class TestRefreshToken:
             id="token-123",
             user_id="user-456",
             token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-            expires_at=datetime.now() + timedelta(days=7),
-            created_at=datetime.now()
+            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            created_at=datetime.now(timezone.utc)
         )
 
         assert refresh_token.is_expired() is False
