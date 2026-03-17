@@ -1,9 +1,11 @@
 """Tests para Use Case RevokeRefreshToken."""
 from datetime import datetime, timezone, timedelta
+from unittest.mock import MagicMock
 import pytest
 
 from app.v1.auth.domain.entities import RefreshToken
 from app.v1.auth.domain.exceptions import InvalidRefreshTokenError
+from app.v1.auth.domain.value_objects import JWTToken
 from app.v1.auth.application.commands.revoke_refresh_token import RevokeRefreshToken
 from app.v1.auth.application.commands.refresh_access_token import RefreshAccessToken
 
@@ -33,8 +35,10 @@ class TestRevokeRefreshToken:
 
     def test_revoke_refresh_token_cannot_refresh_after_revocation(self):
         """Test 2: Un refresh_token revocado no puede ser usado para refrescar."""
+        mock_jwt = MagicMock()
+        mock_jwt.create_access_token.return_value = MagicMock(spec=JWTToken, token="t")
         revoke_uc = RevokeRefreshToken()
-        refresh_uc = RefreshAccessToken()
+        refresh_uc = RefreshAccessToken(jwt_provider=mock_jwt)
 
         now = datetime.now(timezone.utc)
         valid_token = RefreshToken(

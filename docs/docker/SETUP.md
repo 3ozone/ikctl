@@ -102,9 +102,36 @@ SECRET_KEY=tu-clave-secreta-super-larga
 DEBUG=True
 ```
 
-### 4. Ejecutar migraciones (cuando estén disponibles)
+### 4. Ejecutar migraciones
+
+**En local** (con la DB accesible en `localhost:3306`):
 ```bash
 alembic upgrade head
+```
+
+**Dentro del contenedor Docker** (recomendado cuando la app corre en Docker):
+```bash
+docker exec -it ikctl-api alembic upgrade head
+```
+
+**Ver el estado actual de las migraciones:**
+```bash
+docker exec -it ikctl-api alembic current
+```
+
+**Ver el historial de migraciones:**
+```bash
+docker exec -it ikctl-api alembic history
+```
+
+**Hacer rollback a la versión anterior:**
+```bash
+docker exec -it ikctl-api alembic downgrade -1
+```
+
+**Hacer rollback completo (⚠️ borra todas las tablas):**
+```bash
+docker exec -it ikctl-api alembic downgrade base
 ```
 
 ### 5. Iniciar el servidor FastAPI

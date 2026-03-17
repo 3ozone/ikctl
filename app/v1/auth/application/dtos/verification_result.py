@@ -13,3 +13,4 @@ class VerificationResult:
     success: bool
     user_id: str
     message: str = ""
+    token: str = ""

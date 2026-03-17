@@ -40,9 +40,9 @@ class GetUserProfile:
         return UserProfile(
             id=user.id,
             name=user.name,
-            email=user.email.value,  # Email VO → string
-            is_verified=False,  # TODO: Implementar cuando tengamos campo en User
-            is_2fa_enabled=False,  # TODO: Implementar cuando tengamos campo en User
+            email=user.email.value,
+            is_verified=user.is_email_verified,
+            is_2fa_enabled=user.is_2fa_enabled,
             created_at=user.created_at,
             updated_at=user.updated_at
         )

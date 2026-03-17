@@ -47,4 +47,4 @@ class Settings(BaseSettings):
     GITHUB_REDIRECT_URI: str = "http://localhost:8089/api/v1/auth/github/callback"
 
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://0.0.0.0:3000"]

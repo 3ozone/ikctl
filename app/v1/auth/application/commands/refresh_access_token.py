@@ -1,7 +1,7 @@
 """Use Case para refrescar access tokens."""
-from datetime import datetime, timezone, timedelta
-from jose import jwt
+from datetime import datetime, timezone
 
+from app.v1.auth.application.interfaces.jwt_provider import JWTProvider
 from app.v1.auth.domain.entities import RefreshToken
 from app.v1.auth.domain.exceptions import InvalidRefreshTokenError
 
@@ -14,8 +14,14 @@ class RefreshAccessToken:
     """
 
     ACCESS_TOKEN_EXPIRE_MINUTES = 30
-    ALGORITHM = "HS256"
-    SECRET_KEY = "ikctl-secret-key-change-in-production"
+
+    def __init__(self, jwt_provider: JWTProvider) -> None:
+        """Inicializa el use case con el proveedor JWT.
+
+        Args:
+            jwt_provider: Proveedor JWT para generar tokens con la clave correcta.
+        """
+        self._jwt_provider = jwt_provider
 
     def execute(self, refresh_token: RefreshToken) -> str:
         """Genera un nuevo access token usando un refresh token válido.
@@ -32,22 +38,9 @@ class RefreshAccessToken:
         now = datetime.now(timezone.utc)
 
         # Verificar que el refresh token no ha expirado
-        if refresh_token.expires_at <= now:
+        expires_at = refresh_token.expires_at if refresh_token.expires_at.tzinfo else refresh_token.expires_at.replace(tzinfo=timezone.utc)
+        if expires_at <= now:
             raise InvalidRefreshTokenError("Refresh token ha expirado")
 
-        # Crear nuevo access token para el user_id del refresh token
-        access_token_expires = now + \
-            timedelta(minutes=self.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token_payload = {
-            "sub": refresh_token.user_id,
-            "exp": access_token_expires,
-            "iat": now
-        }
-
-        new_access_token = jwt.encode(
-            access_token_payload,
-            self.SECRET_KEY,
-            algorithm=self.ALGORITHM
-        )
-
-        return new_access_token
+        token = self._jwt_provider.create_access_token(refresh_token.user_id)
+        return token.token

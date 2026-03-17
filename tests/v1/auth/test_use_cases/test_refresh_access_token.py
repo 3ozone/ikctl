@@ -1,10 +1,21 @@
 """Tests para Use Case RefreshAccessToken."""
 from datetime import datetime, timezone, timedelta
+from unittest.mock import MagicMock
 import pytest
 
 from app.v1.auth.domain.entities import RefreshToken
 from app.v1.auth.domain.exceptions import InvalidRefreshTokenError
 from app.v1.auth.application.commands.refresh_access_token import RefreshAccessToken
+from app.v1.auth.domain.value_objects import JWTToken
+
+
+def make_jwt_provider_mock():
+    """Crea un mock de JWTProvider que devuelve un JWTToken válido."""
+    mock = MagicMock()
+    token_mock = MagicMock(spec=JWTToken)
+    token_mock.token = "mocked.jwt.token"
+    mock.create_access_token.return_value = token_mock
+    return mock
 
 
 class TestRefreshAccessToken:
@@ -12,7 +23,7 @@ class TestRefreshAccessToken:
 
     def test_refresh_access_token_success(self):
         """Test 1: RefreshAccessToken genera un nuevo access_token usando un refresh_token válido."""
-        refresh_uc = RefreshAccessToken()
+        refresh_uc = RefreshAccessToken(jwt_provider=make_jwt_provider_mock())
 
         # Creamos un RefreshToken entity válido directamente
         now = datetime.now(timezone.utc)
@@ -32,8 +43,8 @@ class TestRefreshAccessToken:
         assert len(new_access_token) > 0
 
     def test_refresh_access_token_expired(self):
-        """Test 2: RefreshAccessToken lanza InvalidRefreshTokenError si el refresh_token ha expirado."""
-        refresh_uc = RefreshAccessToken()
+        """Test 2: RefreshAccessToken lanza InvalidRefreshTokenError si refresh_token expirado."""
+        refresh_uc = RefreshAccessToken(jwt_provider=make_jwt_provider_mock())
 
         # Creamos un refresh token expirado (fecha en el pasado)
         now = datetime.now(timezone.utc)

@@ -1,6 +1,36 @@
 version: "3.8"
 
 services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ikctl-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Sobreescribir las URLs para usar los nombres de contenedor en la red Docker
+      DB_URL: mysql+aiomysql://${DB_USER:-ikctl_user}:${DB_PASSWORD:-ikctl_pass123}@mariadb:3306/${DB_NAME:-ikctl_db}
+      VALKEY_URL: redis://:${VALKEY_PASSWORD:-valkey_pass123}@valkey:6379/0
+      SMTP_HOST: mailhog
+      TZ: UTC
+    ports:
+      - "${FASTAPI_PORT:-8089}:8089"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    networks:
+      - ikctl-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8089/healthz')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
   mariadb:
     image: mariadb
     container_name: ikctl-db
@@ -65,6 +95,16 @@ services:
       timeout: 3s
       retries: 5
       interval: 10s
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ikctl-mailhog
+    restart: unless-stopped
+    ports:
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"
+      - "${MAILHOG_UI_PORT:-8025}:8025"
+    networks:
+      - ikctl-network
 
 volumes:
   mariadb_data:

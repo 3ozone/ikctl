@@ -1,4 +1,5 @@
 """SQLAlchemyVerificationTokenRepository - Implementación SQLAlchemy de VerificationTokenRepository."""
+from datetime import timezone
 from typing import Optional
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -142,6 +143,6 @@ class SQLAlchemyVerificationTokenRepository(VerificationTokenRepository):
             user_id=model.user_id,
             token=model.token,
             token_type=model.token_type,
-            expires_at=model.expires_at,
-            created_at=model.created_at
+            expires_at=model.expires_at.replace(tzinfo=timezone.utc) if model.expires_at.tzinfo is None else model.expires_at,
+            created_at=model.created_at.replace(tzinfo=timezone.utc) if model.created_at.tzinfo is None else model.created_at
         )

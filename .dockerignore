@@ -1,0 +1,51 @@
+# Control de versiones
+.git
+.gitignore
+.github
+
+# Entornos virtuales Python
+.venv
+venv
+env
+.env
+*.env
+!.env.example
+
+# Caché de Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Tests y cobertura
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Documentación
+docs/
+*.md
+!README.md
+
+# IDE y herramientas de desarrollo
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker (no incluir el propio Dockerfile en el contexto anidado)
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Logs
+*.log
+logs/
+
+# Archivos temporales
+*.tmp
+*.bak
+*.orig

@@ -95,7 +95,7 @@ class TestRefreshEndpoint:
         """Refresh token válido → 200 con nuevo access_token."""
         response = client_refresh_valid.post(
             "/api/v1/auth/refresh",
-            json={"refresh_token": _VALID_TOKEN},
+            cookies={"refresh_token": _VALID_TOKEN},
         )
         assert response.status_code == 200
         data = response.json()
@@ -105,7 +105,7 @@ class TestRefreshEndpoint:
         """Refresh token desconocido → 401."""
         response = client_refresh_not_found.post(
             "/api/v1/auth/refresh",
-            json={"refresh_token": _UNKNOWN_TOKEN},
+            cookies={"refresh_token": _UNKNOWN_TOKEN},
         )
         assert response.status_code == 401
 
@@ -113,11 +113,11 @@ class TestRefreshEndpoint:
         """Refresh token expirado → 401."""
         response = client_refresh_expired.post(
             "/api/v1/auth/refresh",
-            json={"refresh_token": _VALID_TOKEN},
+            cookies={"refresh_token": _VALID_TOKEN},
         )
         assert response.status_code == 401
 
-    def test_sin_body_devuelve_422(self, client_refresh_valid: TestClient):
-        """Body vacío → 422."""
+    def test_sin_cookie_devuelve_401(self, client_refresh_valid: TestClient):
+        """Sin cookie refresh_token → 401."""
         response = client_refresh_valid.post("/api/v1/auth/refresh")
-        assert response.status_code == 422
+        assert response.status_code == 401

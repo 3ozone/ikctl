@@ -23,7 +23,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from app.v1.shared.infrastructure.logger import get_logger
 
@@ -31,6 +31,7 @@ from app.v1.shared.infrastructure.logger import get_logger
 from app.v1.auth.application.commands.authenticate_with_github import AuthenticateWithGitHub
 from app.v1.auth.application.commands.create_tokens import CreateTokens
 from app.v1.auth.application.commands.refresh_access_token import RefreshAccessToken
+from app.v1.auth.application.commands.generate_verification_token import GenerateVerificationToken
 from app.v1.auth.application.commands.register_user import RegisterUser
 from app.v1.auth.application.commands.reset_password import ResetPassword
 from app.v1.auth.application.commands.revoke_refresh_token import RevokeRefreshToken
@@ -73,9 +74,7 @@ from app.v1.auth.infrastructure.presentation.schemas import (
     Login2FARequest,
     LoginRequest,
     LoginResponse,
-    LogoutRequest,
     MessageResponse,
-    RefreshRequest,
     RegisterRequest,
     RegisterResponse,
     ResendVerificationRequest,
@@ -114,6 +113,8 @@ logger = get_logger(__name__)
 async def register(
     body: RegisterRequest,
     user_repository: Annotated[SQLAlchemyUserRepository, Depends(get_user_repository)],
+    verification_token_repository: Annotated[SQLAlchemyVerificationTokenRepository, Depends(get_verification_token_repository)],
+    email_service: Annotated[EmailService, Depends(get_email_service)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> RegisterResponse:
     """Endpoint POST /api/v1/auth/register — T-34.
@@ -121,6 +122,8 @@ async def register(
     Args:
         body: RegisterRequest con name, email y password.
         user_repository: Repositorio de usuarios (scoped al request).
+        verification_token_repository: Repositorio de tokens (scoped al request).
+        email_service: Servicio de email para enviar verificación.
         event_bus: EventBus singleton para publicar UserRegistered.
 
     Returns:
@@ -143,6 +146,20 @@ async def register(
         password_hash=password_hash,
     )
 
+    gen_token = GenerateVerificationToken(
+        verification_token_repository=verification_token_repository,
+    )
+    token_result = await gen_token.execute(
+        user_id=result.user_id,
+        token_type="email_verification",
+    )
+
+    await email_service.send_verification_email(
+        to_email=result.email,
+        token=token_result.token,
+        user_name=body.name,
+    )
+
     return RegisterResponse(
         message="Usuario registrado. Verifica tu email para activar tu cuenta.",
         user_id=result.user_id,
@@ -158,6 +175,7 @@ async def register(
 async def verify_email(
     body: VerifyEmailRequest,
     verification_token_repository: Annotated[SQLAlchemyVerificationTokenRepository, Depends(get_verification_token_repository)],
+    user_repository: Annotated[SQLAlchemyUserRepository, Depends(get_user_repository)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> MessageResponse:
     """Endpoint POST /api/v1/auth/verify-email — T-35.
@@ -165,13 +183,14 @@ async def verify_email(
     Args:
         body: VerifyEmailRequest con el token de verificación.
         verification_token_repository: Repositorio de tokens (scoped al request).
+        user_repository: Repositorio de usuarios (scoped al request).
         event_bus: EventBus singleton para publicar EmailVerified.
 
     Returns:
         MessageResponse con confirmación de verificación.
 
     Raises:
-        ResourceNotFoundError: 404 si el token no existe.
+        ResourceNotFoundError: 404 si el token no existe o el usuario no existe.
         InvalidVerificationTokenError: 400 si el token ha expirado o es inválido.
     """
     token = await verification_token_repository.find_by_token(body.token)
@@ -180,6 +199,13 @@ async def verify_email(
 
     use_case = VerifyEmail(event_bus=event_bus)
     await use_case.execute(verification_token=token)
+
+    user = await user_repository.find_by_id(token.user_id)
+    if user is None:
+        raise ResourceNotFoundError(f"Usuario con ID {token.user_id} no encontrado.")
+
+    user.verify_email()
+    await user_repository.update(user)
 
     return MessageResponse(message="Email verificado correctamente.")
 
@@ -237,6 +263,7 @@ async def resend_verification(
 )
 async def login(
     body: LoginRequest,
+    response: Response,
     user_repository: Annotated[SQLAlchemyUserRepository, Depends(get_user_repository)],
     refresh_token_repository: Annotated[SQLAlchemyRefreshTokenRepository, Depends(get_refresh_token_repository)],
     login_attempt_tracker: Annotated[LoginAttemptTracker, Depends(get_login_attempt_tracker)],
@@ -300,6 +327,15 @@ async def login(
         created_at=now,
     )
     await refresh_token_repository.save(refresh_token)
+
+    response.set_cookie(
+        key="refresh_token",
+        value=token_pair.refresh_token,
+        httponly=True,
+        secure=False,  # True en producción (HTTPS)
+        samesite="lax",
+        max_age=7 * 24 * 60 * 60,  # 7 días en segundos
+    )
 
     return LoginResponse(
         access_token=token_pair.access_token,
@@ -394,6 +430,7 @@ async def login_github_callback(
 )
 async def login_2fa(
     body: Login2FARequest,
+    response: Response,
     user_repository: Annotated[SQLAlchemyUserRepository, Depends(get_user_repository)],
     refresh_token_repository: Annotated[SQLAlchemyRefreshTokenRepository, Depends(get_refresh_token_repository)],
     totp_provider: Annotated[TOTPProvider, Depends(get_totp_provider)],
@@ -448,6 +485,15 @@ async def login_2fa(
     )
     await refresh_token_repository.save(refresh_token)
 
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token_obj.token,
+        httponly=True,
+        secure=False,  # True en producción (HTTPS)
+        samesite="lax",
+        max_age=7 * 24 * 60 * 60,
+    )
+
     return LoginResponse(
         access_token=access_token_obj.token,
         refresh_token=refresh_token_obj.token,
@@ -463,14 +509,15 @@ async def login_2fa(
     description="Genera un nuevo access token usando un refresh token válido.",
 )
 async def refresh(
-    body: RefreshRequest,
+    request: Request,
     response: Response,
     refresh_token_repository: Annotated[SQLAlchemyRefreshTokenRepository, Depends(get_refresh_token_repository)],
+    jwt_provider: Annotated[JWTProvider, Depends(get_jwt_provider)],
 ) -> LoginResponse:
     """Endpoint POST /api/v1/auth/refresh — T-41.
 
     Args:
-        body: RefreshRequest con el refresh_token.
+        request: Objeto Request de FastAPI para leer la cookie refresh_token.
         response: Objeto Response de FastAPI para establecer cookies.
         refresh_token_repository: Repositorio de refresh tokens (scoped al request).
 
@@ -478,9 +525,15 @@ async def refresh(
         LoginResponse con nuevo access_token.
 
     Raises:
-        HTTPException 401: Si el token no existe o ha expirado.
+        HTTPException 401: Si el token no existe, ha expirado o la cookie no está presente.
     """
-    stored = await refresh_token_repository.find_by_token(body.refresh_token)
+    refresh_token_value = request.cookies.get("refresh_token")
+    if not refresh_token_value:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token no encontrado.",
+        )
+    stored = await refresh_token_repository.find_by_token(refresh_token_value)
     if stored is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -493,15 +546,16 @@ async def refresh(
             detail="Refresh token expirado.",
         )
 
-    new_access_token = RefreshAccessToken().execute(stored)
+    new_access_token = RefreshAccessToken(
+        jwt_provider=jwt_provider).execute(stored)
     logger.info("token_refreshed", user_id=stored.user_id)
 
     response.set_cookie(
         key="refresh_token",
-        value=body.refresh_token,
+        value=refresh_token_value,
         httponly=True,
-        secure=True,
-        samesite="strict",
+        secure=False,  # True en producción (HTTPS)
+        samesite="lax",
         max_age=7 * 24 * 60 * 60,  # 7 días en segundos
     )
 
@@ -519,14 +573,14 @@ async def refresh(
     description="Revoca el refresh token e invalida la sesión del usuario.",
 )
 async def logout(
-    body: LogoutRequest,
+    request: Request,
     response: Response,
     refresh_token_repository: Annotated[SQLAlchemyRefreshTokenRepository, Depends(get_refresh_token_repository)],
 ) -> MessageResponse:
     """Endpoint POST /api/v1/auth/logout — T-42.
 
     Args:
-        body: LogoutRequest con el refresh_token a revocar.
+        request: Objeto Request de FastAPI para leer la cookie refresh_token.
         response: Objeto Response de FastAPI para limpiar cookies.
         refresh_token_repository: Repositorio de refresh tokens (scoped al request).
 
@@ -534,9 +588,15 @@ async def logout(
         MessageResponse con confirmación de cierre de sesión.
 
     Raises:
-        HTTPException 401: Si el refresh token no existe.
+        HTTPException 401: Si el refresh token no existe o la cookie no está presente.
     """
-    stored = await refresh_token_repository.find_by_token(body.refresh_token)
+    refresh_token_value = request.cookies.get("refresh_token")
+    if not refresh_token_value:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token no encontrado.",
+        )
+    stored = await refresh_token_repository.find_by_token(refresh_token_value)
     if stored is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -549,8 +609,8 @@ async def logout(
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        secure=True,
-        samesite="strict",
+        secure=False,  # True en producción (HTTPS)
+        samesite="lax",
     )
 
     return MessageResponse(message="Sesión cerrada correctamente.")

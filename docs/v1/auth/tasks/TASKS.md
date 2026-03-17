@@ -1,6 +1,6 @@
 # Tareas del Módulo Auth v1.0.0
 
-**Estado:** 187 tests GREEN ✅ (44 domain + 48 use cases + 75 infrastructure + 20 shared)
+**Estado:** 189 tests GREEN ✅ (44 domain + 48 use cases + 75 infrastructure + 20 shared + 2 presentation)
 
 ## Fase 0: Migración a Clean Architecture (CRÍTICA)
 
@@ -174,6 +174,10 @@
 ## Fase 4: Presentation (FastAPI Endpoints)
 
 - [x] **T-34**: Endpoint `/api/v1/auth/register` - POST ✅
+  - [x] **T-34.A**: Integrar `GenerateVerificationToken` + `EmailService.send_verification_email()` en el endpoint de registro — el registro genera y persiste el token, envía email de verificación ✅
+  - [x] **T-34.B**: Tests de presentación para `/register` — 2 tests: registro exitoso envía email (201), email duplicado devuelve 409 sin enviar email ✅
+  - [x] **T-34.C**: Bugfix `FakeUserRepository.save()` — lanza `EmailAlreadyExistsError` en duplicados para que el exception handler devuelva 409 ✅
+  - [x] **T-34.D**: Bugfix `_model_to_entity` en `SQLAlchemyVerificationTokenRepository` — `expires_at`/`created_at` venían naive de MariaDB, ahora se les añade UTC explícitamente para evitar `TypeError: can't compare offset-naive and offset-aware datetimes` ✅
 - [x] **T-35**: Endpoint `/api/v1/auth/verify-email` - POST ✅
 - [x] **T-36**: Endpoint `/api/v1/auth/resend-verification` - POST ✅
 - [x] **T-37**: Endpoint `/api/v1/auth/login` - POST ✅

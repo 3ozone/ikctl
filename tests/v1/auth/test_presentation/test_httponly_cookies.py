@@ -66,7 +66,7 @@ def test_refresh_exitoso_setea_cookie_httponly(client_cookie_valid: TestClient):
     """Refresh exitoso → respuesta incluye cookie refresh_token con flag HttpOnly."""
     response = client_cookie_valid.post(
         "/api/v1/auth/refresh",
-        json={"refresh_token": _VALID_TOKEN},
+        cookies={"refresh_token": _VALID_TOKEN},
     )
 
     assert response.status_code == 200
@@ -76,16 +76,16 @@ def test_refresh_exitoso_setea_cookie_httponly(client_cookie_valid: TestClient):
     assert "HttpOnly" in cookie
 
 
-def test_refresh_exitoso_cookie_samesite_strict(client_cookie_valid: TestClient):
-    """Refresh exitoso → cookie refresh_token tiene SameSite=strict."""
+def test_refresh_exitoso_cookie_samesite_lax(client_cookie_valid: TestClient):
+    """Refresh exitoso → cookie refresh_token tiene SameSite=lax."""
     response = client_cookie_valid.post(
         "/api/v1/auth/refresh",
-        json={"refresh_token": _VALID_TOKEN},
+        cookies={"refresh_token": _VALID_TOKEN},
     )
 
     assert response.status_code == 200
     cookie = response.headers["set-cookie"]
-    assert "samesite=strict" in cookie.lower()
+    assert "samesite=lax" in cookie.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +97,7 @@ def test_logout_exitoso_elimina_cookie(client_cookie_valid: TestClient):
     """Logout exitoso → respuesta incluye Set-Cookie que borra refresh_token."""
     response = client_cookie_valid.post(
         "/api/v1/auth/logout",
-        json={"refresh_token": _VALID_TOKEN},
+        cookies={"refresh_token": _VALID_TOKEN},
     )
 
     assert response.status_code == 200

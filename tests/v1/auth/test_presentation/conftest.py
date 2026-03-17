@@ -6,6 +6,7 @@ dependen del estado específico de cada escenario.
 """
 import asyncio
 
+from app.v1.auth.application.exceptions import EmailAlreadyExistsError
 from app.v1.auth.domain.entities.refresh_token import RefreshToken
 from app.v1.auth.domain.entities.user import User
 from app.v1.auth.domain.entities.verification_token import VerificationToken
@@ -40,6 +41,9 @@ class FakeUserRepository:
     async def save(self, user: User) -> User:
         """Guarda un usuario."""
         await asyncio.sleep(0)
+        if self._user and self._user.email.value == user.email.value:
+            raise EmailAlreadyExistsError("El email ya está registrado.")
+        self._user = user
         return user
 
     async def update(self, user: User) -> User:
@@ -151,10 +155,10 @@ class FakeEmailService:
         """Inicializa el servicio con lista de emails enviados vacía."""
         self.sent: list[dict] = []
 
-    async def send_verification_email(self, email: str, token: str, user_name: str) -> None:
+    async def send_verification_email(self, to_email: str, token: str, user_name: str) -> None:
         """Registra envío de email de verificación."""
         await asyncio.sleep(0)
-        self.sent.append({"type": "verification", "email": email,
+        self.sent.append({"type": "verification", "email": to_email,
                          "token": token, "user_name": user_name})
 
     async def send_password_reset_email(self, email: str, token: str, user_name: str) -> None:

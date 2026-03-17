@@ -212,10 +212,15 @@ class AiosmtplibEmailService(EmailService):
         message["Subject"] = subject
 
         # Enviar email
+        # Si no hay credenciales (ej: MailHog en desarrollo), conexión plain sin TLS
+        use_tls = bool(self._smtp_user and self._smtp_password)
+
         async with aiosmtplib.SMTP(
             hostname=self._smtp_host,
             port=self._smtp_port,
-            use_tls=True
+            use_tls=use_tls,
+            start_tls=False,
         ) as smtp:
-            await smtp.login(self._smtp_user, self._smtp_password)
+            if use_tls:
+                await smtp.login(self._smtp_user, self._smtp_password)
             await smtp.send_message(message)

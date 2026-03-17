@@ -49,4 +49,5 @@ class RefreshToken:
         Returns:
             True si expires_at está en el pasado, False si aún es válido.
         """
-        return datetime.now(timezone.utc) > self.expires_at
+        expires_at = self.expires_at if self.expires_at.tzinfo else self.expires_at.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) > expires_at

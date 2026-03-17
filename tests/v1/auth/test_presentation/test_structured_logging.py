@@ -239,7 +239,7 @@ def test_token_refresh_emite_log_token_refreshed():
             client = TestClient(app)
             response = client.post(
                 "/api/v1/auth/refresh",
-                json={"refresh_token": _VALID_REFRESH_TOKEN},
+                cookies={"refresh_token": _VALID_REFRESH_TOKEN},
             )
 
         assert response.status_code == 200

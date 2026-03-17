@@ -97,7 +97,8 @@ def fixture_client_expired_token():
     app.dependency_overrides[get_verification_token_repository] = (
         lambda: FakeVerificationTokenRepository(token=token)
     )
-    app.dependency_overrides[get_user_repository] = FakeUserRepository
+    app.dependency_overrides[get_user_repository] = lambda: FakeUserRepository(
+    )
     app.dependency_overrides[get_event_bus] = FakeEventBus
 
     yield TestClient(app)
@@ -111,7 +112,8 @@ def fixture_client_missing_token():
     app.dependency_overrides[get_verification_token_repository] = (
         lambda: FakeVerificationTokenRepository(token=None)
     )
-    app.dependency_overrides[get_user_repository] = FakeUserRepository
+    app.dependency_overrides[get_user_repository] = lambda: FakeUserRepository(
+    )
     app.dependency_overrides[get_event_bus] = FakeEventBus
 
     yield TestClient(app)
