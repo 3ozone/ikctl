@@ -376,6 +376,7 @@ async def login_github(
 async def login_github_callback(
     code: str,
     state: str,
+    response: Response,
     user_repository: Annotated[SQLAlchemyUserRepository, Depends(get_user_repository)],
     refresh_token_repository: Annotated[SQLAlchemyRefreshTokenRepository, Depends(get_refresh_token_repository)],
     github_oauth: Annotated[GitHubOAuth, Depends(get_github_oauth)],
@@ -386,6 +387,7 @@ async def login_github_callback(
     Args:
         code: Authorization code recibido de GitHub.
         state: CSRF state token (validación pendiente en T-51).
+        response: Objeto Response de FastAPI para establecer cookies.
         user_repository: Repositorio de usuarios (scoped al request).
         refresh_token_repository: Repositorio de refresh tokens (scoped al request).
         github_oauth: Proveedor OAuth de GitHub (singleton).
@@ -413,6 +415,15 @@ async def login_github_callback(
         created_at=now,
     )
     await refresh_token_repository.save(refresh_token)
+
+    response.set_cookie(
+        key="refresh_token",
+        value=result.refresh_token,
+        httponly=True,
+        secure=False,  # True en producción (HTTPS)
+        samesite="lax",
+        max_age=7 * 24 * 60 * 60,
+    )
 
     return LoginResponse(
         access_token=result.access_token,

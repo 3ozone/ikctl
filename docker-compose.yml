@@ -14,6 +14,10 @@ services:
       DB_URL: mysql+aiomysql://${DB_USER:-ikctl_user}:${DB_PASSWORD:-ikctl_pass123}@mariadb:3306/${DB_NAME:-ikctl_db}
       VALKEY_URL: redis://:${VALKEY_PASSWORD:-valkey_pass123}@valkey:6379/0
       SMTP_HOST: mailhog
+      # GitHub OAuth — callback apunta al frontend (el navegador es quien recibe el redirect)
+      GITHUB_REDIRECT_URI: ${GITHUB_REDIRECT_URI:-http://localhost:3000/login/github/callback}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       TZ: UTC
     ports:
       - "${FASTAPI_PORT:-8089}:8089"

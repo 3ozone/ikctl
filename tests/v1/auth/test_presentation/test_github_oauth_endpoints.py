@@ -200,3 +200,14 @@ class TestGitHubOAuthCallbackEndpoint:
         response = client_github_new_user.get(
             "/api/v1/auth/login/github/callback")
         assert response.status_code == 422
+
+    def test_callback_setea_httponly_cookie(self, client_github_new_user: TestClient):
+        """Callback exitoso → cookie refresh_token seteada con HttpOnly."""
+        response = client_github_new_user.get(
+            "/api/v1/auth/login/github/callback",
+            params={"code": _GITHUB_CODE, "state": _GITHUB_STATE},
+        )
+        assert response.status_code == 200
+        assert "refresh_token" in response.cookies
+        cookie_header = response.headers.get("set-cookie", "")
+        assert "HttpOnly" in cookie_header

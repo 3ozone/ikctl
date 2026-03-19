@@ -179,16 +179,22 @@
   - [x] **T-34.C**: Bugfix `FakeUserRepository.save()` — lanza `EmailAlreadyExistsError` en duplicados para que el exception handler devuelva 409 ✅
   - [x] **T-34.D**: Bugfix `_model_to_entity` en `SQLAlchemyVerificationTokenRepository` — `expires_at`/`created_at` venían naive de MariaDB, ahora se les añade UTC explícitamente para evitar `TypeError: can't compare offset-naive and offset-aware datetimes` ✅
 - [x] **T-35**: Endpoint `/api/v1/auth/verify-email` - POST ✅
+  - [x] **T-35.A**: Bugfix — el endpoint no persistía `is_email_verified=True` en la DB tras validar el token. Ahora llama a `user.verify_email()` + `user_repository.update(user)` ✅
+  - [x] **T-35.B**: Bugfix fixtures `test_verify_email_endpoint.py` — `client_expired` y `client_missing` pasaban la clase `FakeUserRepository` directamente como override (causando 422). Corregido con `lambda: FakeUserRepository()` ✅
 - [x] **T-36**: Endpoint `/api/v1/auth/resend-verification` - POST ✅
 - [x] **T-37**: Endpoint `/api/v1/auth/login` - POST ✅
-- [x] **T-38**: Endpoint `/api/v1/login/github` - POST
-- [x] **T-39**: Endpoint `/api/v1/login/github/callback` - GET
+- [x] **T-38**: Endpoint `/api/v1/login/github` - POST ✅
+- [x] **T-39**: Endpoint `/api/v1/login/github/callback` - GET ✅
+  - [x] **T-39.A**: Bugfix — el callback no seteaba la cookie HttpOnly `refresh_token`, causando 401 en el siguiente `/refresh`. Corregido añadiendo `response.set_cookie()` igual que `login` y `login/2fa` ✅
+  - [x] **T-39.B**: Test `test_callback_setea_httponly_cookie` añadido en `test_github_oauth_endpoints.py` ✅
 - [x] **T-40**: Endpoint `/api/v1/login/2fa` - POST ✅
+  - [x] **T-40.A**: Bugfix — el endpoint no seteaba la cookie HttpOnly `refresh_token` tras completar el 2FA, causando 401 en el siguiente `/refresh`. Corregido añadiendo `response.set_cookie()` igual que el login normal ✅
 - [x] **T-41**: Endpoint `/api/v1/refresh` - POST ✅
 - [x] **T-42**: Endpoint `/api/v1/logout` - POST ✅
 - [x] **T-43**: Endpoint `/api/v1/password/forgot` - POST ✅
 - [x] **T-44**: Endpoint `/api/v1/password/reset` - POST ✅
 - [x] **T-45**: Endpoint `/api/v1/users/me` - GET ✅
+  - [x] **T-45.A**: Bugfix `GetUserProfile` — `is_verified` e `is_2fa_enabled` se devolvían siempre como `False` (TODO pendiente). Ahora leen `user.is_email_verified` y `user.is_2fa_enabled` de la entity ✅
 - [x] **T-46**: Endpoint `/api/v1/users/me` - PUT ✅
 - [x] **T-47**: Endpoint `/api/v1/users/me/password` - PUT ✅
 - [x] **T-48**: Endpoint `/api/v1/users/me/2fa/enable` - POST ✅

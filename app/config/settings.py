@@ -44,7 +44,8 @@ class Settings(BaseSettings):
     # GitHub OAuth
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
-    GITHUB_REDIRECT_URI: str = "http://localhost:8089/api/v1/auth/github/callback"
+    # Apunta al frontend — GitHub redirige el navegador a la página callback de Next.js
+    GITHUB_REDIRECT_URI: str = "http://localhost:3000/login/github/callback"
 
     # CORS
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://0.0.0.0:3000"]
