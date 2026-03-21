@@ -315,22 +315,24 @@ async def login(
             expires_in=0,
         )
 
-    create_tokens = CreateTokens()
-    token_pair = create_tokens.execute(user)
+    # Usar jwt_provider (inyectado con el secret del .env) en lugar de
+    # CreateTokens que tiene el secret key hardcodeado
+    access_token_obj = jwt_provider.create_access_token(user_id=user.id)
+    refresh_token_value = str(uuid4())
 
     now = datetime.now(timezone.utc)
     refresh_token = RefreshToken(
         id=str(uuid4()),
         user_id=user.id,
-        token=token_pair.refresh_token,
-        expires_at=token_pair.refresh_expires_at,
+        token=refresh_token_value,
+        expires_at=now + timedelta(days=7),
         created_at=now,
     )
     await refresh_token_repository.save(refresh_token)
 
     response.set_cookie(
         key="refresh_token",
-        value=token_pair.refresh_token,
+        value=refresh_token_value,
         httponly=True,
         secure=False,  # True en producción (HTTPS)
         samesite="lax",
@@ -338,9 +340,9 @@ async def login(
     )
 
     return LoginResponse(
-        access_token=token_pair.access_token,
-        refresh_token=token_pair.refresh_token,
-        token_type=token_pair.token_type,
+        access_token=access_token_obj.token,
+        refresh_token=refresh_token_value,
+        token_type="bearer",
         expires_in=CreateTokens.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
