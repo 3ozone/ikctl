@@ -22,6 +22,18 @@ tags:
     description: Recuperación de contraseña
   - name: 2fa
     description: Autenticación de dos factores
+  - name: credentials
+    description: Gestión de credenciales SSH y Git
+  - name: servers
+    description: Gestión de servidores remotos y locales
+  - name: groups
+    description: Grupos de servidores
+  - name: kits
+    description: Kits de instalación (repositorios Git)
+  - name: operations
+    description: Ejecución de operaciones en servidores
+  - name: pipelines
+    description: Pipelines de operaciones en múltiples servidores
 
 security:
   - BearerAuth: []
@@ -570,6 +582,967 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  # ── CREDENTIALS ────────────────────────────────────────────────────────────
+
+  /api/v1/credentials:
+    post:
+      tags: [credentials]
+      summary: Crear credencial (RF-29)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialCreate'
+      responses:
+        '201':
+          description: Credencial creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Credential'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    get:
+      tags: [credentials]
+      summary: Listar credenciales del usuario (RF-30)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [ssh, git_https, git_ssh]
+      responses:
+        '200':
+          description: Lista de credenciales
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCredentials'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/credentials/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+
+    get:
+      tags: [credentials]
+      summary: Obtener detalle de una credencial (RF-31)
+      responses:
+        '200':
+          description: Detalle de la credencial
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Credential'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [credentials]
+      summary: Actualizar credencial (RF-32)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialUpdate'
+      responses:
+        '200':
+          description: Credencial actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Credential'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [credentials]
+      summary: Eliminar credencial (RF-33)
+      description: Falla si algún servidor la referencia activamente (RN-06)
+      responses:
+        '204':
+          description: Credencial eliminada
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ── SERVERS ────────────────────────────────────────────────────────────────
+
+  /api/v1/servers:
+    post:
+      tags: [servers]
+      summary: Registrar servidor remoto o local (RF-01, RF-34)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerCreate'
+      responses:
+        '201':
+          description: Servidor creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Server'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Ya existe un servidor local para este usuario (RN-07)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    get:
+      tags: [servers]
+      summary: Listar servidores del usuario (RF-02)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [remote, local]
+      responses:
+        '200':
+          description: Lista de servidores
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedServers'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/servers/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+
+    get:
+      tags: [servers]
+      summary: Obtener detalle de un servidor (RF-03)
+      description: Las credenciales nunca se devuelven — solo credential_id
+      responses:
+        '200':
+          description: Detalle del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Server'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [servers]
+      summary: Actualizar servidor (RF-04)
+      description: Un servidor local solo permite actualizar name y description
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerUpdate'
+      responses:
+        '200':
+          description: Servidor actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Server'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [servers]
+      summary: Eliminar servidor (RF-05)
+      description: Falla si tiene operaciones en estado in_progress (RN-08)
+      responses:
+        '204':
+          description: Servidor eliminado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/servers/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    patch:
+      tags: [servers]
+      summary: Habilitar o deshabilitar servidor (RF-06)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [active, inactive]
+                  example: inactive
+      responses:
+        '200':
+          description: Estado actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Server'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/servers/{id}/health:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags: [servers]
+      summary: Health check del servidor (RF-07, RF-08)
+      description: Intenta conexión SSH y autodetecta SO. Responde en <2s si online, <35s en timeout
+      responses:
+        '200':
+          description: Resultado del health check
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [online, offline]
+                    example: online
+                  latency_ms:
+                    type: integer
+                    example: 45
+                  os_id:
+                    type: string
+                    example: ubuntu
+                    nullable: true
+                  os_version:
+                    type: string
+                    example: "22.04"
+                    nullable: true
+                  os_name:
+                    type: string
+                    example: "Ubuntu 22.04.3 LTS"
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/servers/{id}/exec:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    post:
+      tags: [servers]
+      summary: Ejecutar comando ad-hoc en un servidor (RF-08.1)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [command]
+              properties:
+                command:
+                  type: string
+                  example: "df -h"
+      responses:
+        '200':
+          description: Resultado del comando
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stdout:
+                    type: string
+                  stderr:
+                    type: string
+                  exit_code:
+                    type: integer
+                    example: 0
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── GROUPS ─────────────────────────────────────────────────────────────────
+
+  /api/v1/groups:
+    post:
+      tags: [groups]
+      summary: Crear grupo de servidores (RF-27)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupCreate'
+      responses:
+        '201':
+          description: Grupo creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [groups]
+      summary: Listar grupos del usuario (RF-28.1)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Lista de grupos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGroups'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/groups/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+
+    get:
+      tags: [groups]
+      summary: Obtener detalle de un grupo (RF-28.2)
+      responses:
+        '200':
+          description: Detalle del grupo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [groups]
+      summary: Actualizar grupo (RF-28.3)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupUpdate'
+      responses:
+        '200':
+          description: Grupo actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [groups]
+      summary: Eliminar grupo (RF-28.4)
+      description: Falla si tiene pipelines en curso que lo referencien (RN-19)
+      responses:
+        '204':
+          description: Grupo eliminado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ── KITS ───────────────────────────────────────────────────────────────────
+
+  /api/v1/kits:
+    post:
+      tags: [kits]
+      summary: Registrar kit apuntando a repositorio Git (RF-09)
+      description: Crea el kit con sync_status never_synced. No hace llamada a Git en este paso
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KitCreate'
+      responses:
+        '201':
+          description: Kit creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kit'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [kits]
+      summary: Listar kits del usuario (RF-10)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: tags
+          in: query
+          description: Filtrar por tags (comma-separated)
+          schema:
+            type: string
+            example: "networking,loadbalancer"
+        - name: sync_status
+          in: query
+          schema:
+            type: string
+            enum: [never_synced, synced, sync_error]
+      responses:
+        '200':
+          description: Lista de kits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedKits'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/kits/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+
+    get:
+      tags: [kits]
+      summary: Obtener detalle de un kit (RF-11)
+      responses:
+        '200':
+          description: Detalle del kit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kit'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [kits]
+      summary: Actualizar kit (RF-12)
+      description: Cambiar ref, repo_url o path_in_repo resetea sync_status a never_synced
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KitUpdate'
+      responses:
+        '200':
+          description: Kit actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kit'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [kits]
+      summary: Eliminar kit — soft delete (RF-13)
+      responses:
+        '204':
+          description: Kit marcado como eliminado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/kits/{id}/sync:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    post:
+      tags: [kits]
+      summary: Sincronizar kit desde Git (RF-35)
+      description: >
+        Hace shallow clone depth=1 del repo en ref, valida ikctl.yaml en path_in_repo,
+        extrae metadatos y actualiza sync_status. Timeout 30s.
+      responses:
+        '200':
+          description: Kit sincronizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kit'
+        '400':
+          description: Error de sincronización — sync_status actualizado a sync_error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── OPERATIONS ─────────────────────────────────────────────────────────────
+
+  /api/v1/operations:
+    post:
+      tags: [operations]
+      summary: Lanzar operación (RF-14)
+      description: >
+        Crea la operación con estado pending y la ejecuta de forma asíncrona.
+        El kit debe tener sync_status synced y el servidor debe estar active.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationLaunch'
+      responses:
+        '202':
+          description: Operación aceptada y encolada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    get:
+      tags: [operations]
+      summary: Listar operaciones del usuario (RF-16)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: server_id
+          in: query
+          schema:
+            type: string
+        - name: kit_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_progress, completed, failed, cancelled, cancelled_unsafe]
+      responses:
+        '200':
+          description: Lista de operaciones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOperations'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/operations/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags: [operations]
+      summary: Consultar estado de operación (RF-15)
+      description: >
+        output solo se devuelve si debug_level es errors o full.
+        Con errors devuelve solo stderr; con full devuelve stdout + stderr.
+        Soporta polling mientras status es in_progress.
+      responses:
+        '200':
+          description: Estado de la operación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/operations/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    post:
+      tags: [operations]
+      summary: Cancelar operación (RF-17)
+      description: >
+        pending → cancelled (limpio).
+        in_progress → cancelled_unsafe (servidor puede quedar en estado parcial).
+      responses:
+        '200':
+          description: Operación cancelada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: La operación ya está en estado terminal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/operations/{id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    post:
+      tags: [operations]
+      summary: Restaurar backup pre-operación (RF-18)
+      description: >
+        Disponible para operaciones failed o cancelled_unsafe con backup[] declarado en el kit.
+        Ejecuta cp {path}.bak.ikctl {path} para cada fichero del backup en el servidor.
+      responses:
+        '200':
+          description: Backup restaurado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Backup restaurado correctamente"
+                  restored_files:
+                    type: array
+                    items:
+                      type: string
+                    example: ["/etc/nginx/nginx.conf"]
+        '400':
+          description: No hay backup disponible para esta operación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/operations/{id}/retry:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    post:
+      tags: [operations]
+      summary: Reintentar operación fallida (RF-19)
+      description: >
+        Disponible para operaciones en estado failed o cancelled_unsafe.
+        Crea una nueva operación con los mismos parámetros conservando la original en el historial.
+      responses:
+        '202':
+          description: Nueva operación creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: La operación no está en estado retriable (failed o cancelled_unsafe)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── PIPELINES ──────────────────────────────────────────────────────────────
+
+  /api/v1/pipelines:
+    post:
+      tags: [pipelines]
+      summary: Crear pipeline (RF-20)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineCreate'
+      responses:
+        '201':
+          description: Pipeline creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pipeline'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [pipelines]
+      summary: Listar pipelines del usuario (RF-23)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Lista de pipelines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPipelines'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/pipelines/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+
+    get:
+      tags: [pipelines]
+      summary: Obtener detalle de un pipeline (RF-22)
+      responses:
+        '200':
+          description: Detalle del pipeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pipeline'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [pipelines]
+      summary: Actualizar pipeline (RF-24)
+      description: Solo si no tiene ejecuciones en estado in_progress (RN-16)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineUpdate'
+      responses:
+        '200':
+          description: Pipeline actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pipeline'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El pipeline tiene ejecuciones en curso (RN-16)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [pipelines]
+      summary: Eliminar pipeline (RF-25)
+      description: Solo si no tiene ejecuciones en curso
+      responses:
+        '204':
+          description: Pipeline eliminado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/pipelines/{id}/launch:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    post:
+      tags: [pipelines]
+      summary: Lanzar ejecución de pipeline (RF-21)
+      description: >
+        Crea una operación por cada combinación kit+servidor y las ejecuta en paralelo de forma asíncrona.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                timeout_seconds:
+                  type: integer
+                  default: 1800
+                  example: 1800
+      responses:
+        '202':
+          description: Pipeline lanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineExecution'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/pipelines/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags: [pipelines]
+      summary: Estado de la última ejecución del pipeline (RF-22)
+      responses:
+        '200':
+          description: Estado agregado y detalle de operaciones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineExecution'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/pipelines/{id}/history:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags: [pipelines]
+      summary: Historial de ejecuciones del pipeline (RF-26)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Historial de ejecuciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PipelineExecutionSummary'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  per_page:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -577,7 +1550,32 @@ components:
       scheme: bearer
       bearerFormat: JWT
 
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+
   schemas:
+    # ── Auth ──────────────────────────────────────────────────────────────────
     TokenResponse:
       type: object
       properties:
@@ -636,6 +1634,678 @@ components:
           type: object
           additionalProperties: true
 
+    # ── Credentials ───────────────────────────────────────────────────────────
+    Credential:
+      type: object
+      description: "password y private_key son write-only — nunca se devuelven en respuestas"
+      properties:
+        id:
+          type: string
+          example: "cred_1a2b3c4d"
+        user_id:
+          type: string
+          example: "usr_1a2b3c4d"
+        name:
+          type: string
+          example: "GitHub PAT — org/infra-kits"
+        type:
+          type: string
+          enum: [ssh, git_https, git_ssh]
+          example: git_https
+        username:
+          type: string
+          example: "octocat"
+          nullable: true
+          description: "ssh: usuario del sistema. git_https: usuario GitHub. git_ssh: no aplica"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CredentialCreate:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+          example: "GitHub PAT — org/infra-kits"
+        type:
+          type: string
+          enum: [ssh, git_https, git_ssh]
+          example: git_https
+        username:
+          type: string
+          example: "octocat"
+          description: "Requerido para ssh y git_https"
+        password:
+          type: string
+          writeOnly: true
+          description: "ssh: password SSH (opcional si hay private_key). git_https: Personal Access Token (requerido)"
+        private_key:
+          type: string
+          writeOnly: true
+          description: "ssh: clave ed25519 (opcional si hay password). git_ssh: clave ed25519 (requerido)"
+
+    CredentialUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+          writeOnly: true
+        private_key:
+          type: string
+          writeOnly: true
+
+    PaginatedCredentials:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Credential'
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+
+    # ── Servers ───────────────────────────────────────────────────────────────
+    Server:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "srv_1a2b3c4d"
+        user_id:
+          type: string
+        name:
+          type: string
+          example: "web-01"
+        type:
+          type: string
+          enum: [remote, local]
+          example: remote
+        host:
+          type: string
+          example: "192.168.1.10"
+          nullable: true
+        port:
+          type: integer
+          example: 22
+          nullable: true
+        credential_id:
+          type: string
+          example: "cred_1a2b3c4d"
+          nullable: true
+          description: "Las credenciales nunca se devuelven — solo el id de referencia"
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+          example: active
+        os_id:
+          type: string
+          example: "ubuntu"
+          nullable: true
+        os_version:
+          type: string
+          example: "22.04"
+          nullable: true
+        os_name:
+          type: string
+          example: "Ubuntu 22.04.3 LTS"
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ServerCreate:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+          example: "web-01"
+        type:
+          type: string
+          enum: [remote, local]
+          default: remote
+        host:
+          type: string
+          example: "192.168.1.10"
+          description: "Requerido si type es remote"
+        port:
+          type: integer
+          default: 22
+          description: "Requerido si type es remote"
+        credential_id:
+          type: string
+          example: "cred_1a2b3c4d"
+          description: "Requerido si type es remote. Debe ser de type ssh"
+        description:
+          type: string
+
+    ServerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        host:
+          type: string
+          description: "Ignorado para servidor local"
+        port:
+          type: integer
+          description: "Ignorado para servidor local"
+        credential_id:
+          type: string
+          description: "Ignorado para servidor local"
+        description:
+          type: string
+
+    PaginatedServers:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Server'
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+
+    # ── Groups ────────────────────────────────────────────────────────────────
+    Group:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "grp_1a2b3c4d"
+        user_id:
+          type: string
+        name:
+          type: string
+          example: "Production Cluster"
+        description:
+          type: string
+          nullable: true
+        server_ids:
+          type: array
+          items:
+            type: string
+          example: ["srv_001", "srv_002", "srv_003"]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    GroupCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: "Production Cluster"
+        description:
+          type: string
+        server_ids:
+          type: array
+          items:
+            type: string
+          default: []
+
+    GroupUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        server_ids:
+          type: array
+          items:
+            type: string
+
+    PaginatedGroups:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Group'
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+
+    # ── Kits ──────────────────────────────────────────────────────────────────
+    Kit:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "kit_1a2b3c4d"
+        user_id:
+          type: string
+        name:
+          type: string
+          example: "Install HAProxy"
+          nullable: true
+          description: "Extraído del ikctl.yaml. NULL hasta que sync_status sea synced"
+        description:
+          type: string
+          nullable: true
+        version:
+          type: string
+          example: "1.0.0"
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["networking", "loadbalancer"]
+        values:
+          type: object
+          additionalProperties: true
+          description: "Valores por defecto del kit extraídos del ikctl.yaml"
+        debug_level:
+          type: string
+          enum: [none, errors, full]
+          default: none
+        repo_url:
+          type: string
+          example: "https://github.com/org/infra-kits"
+        ref:
+          type: string
+          example: "main"
+          description: "Branch o tag del repositorio"
+        path_in_repo:
+          type: string
+          example: "haproxy/"
+          description: "Ruta del kit dentro del monorepo"
+        git_credential_id:
+          type: string
+          nullable: true
+          description: "NULL si el repositorio es público. Debe ser type git_https o git_ssh"
+        sync_status:
+          type: string
+          enum: [never_synced, synced, sync_error]
+          example: synced
+        last_synced_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_commit_sha:
+          type: string
+          example: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+          nullable: true
+        sync_error_message:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    KitCreate:
+      type: object
+      required: [repo_url, ref, path_in_repo]
+      properties:
+        repo_url:
+          type: string
+          example: "https://github.com/org/infra-kits"
+        ref:
+          type: string
+          example: "main"
+          description: "Branch o tag. Ej: 'main', 'v1.0.0', 'feature/haproxy-v2'"
+        path_in_repo:
+          type: string
+          example: "haproxy/"
+          description: "Carpeta del kit dentro del monorepo"
+        git_credential_id:
+          type: string
+          nullable: true
+          description: "NULL si el repo es público. Debe ser type git_https o git_ssh"
+
+    KitUpdate:
+      type: object
+      properties:
+        repo_url:
+          type: string
+          description: "Cambiar este campo resetea sync_status a never_synced"
+        ref:
+          type: string
+          description: "Cambiar este campo resetea sync_status a never_synced"
+        path_in_repo:
+          type: string
+          description: "Cambiar este campo resetea sync_status a never_synced"
+        git_credential_id:
+          type: string
+          nullable: true
+
+    PaginatedKits:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Kit'
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+
+    # ── Operations ────────────────────────────────────────────────────────────
+    Operation:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "op_1a2b3c4d"
+        user_id:
+          type: string
+        server_id:
+          type: string
+          example: "srv_1a2b3c4d"
+        kit_id:
+          type: string
+          example: "kit_1a2b3c4d"
+        values:
+          type: object
+          additionalProperties: true
+          description: "Valores efectivos usados en la ejecución (defaults del kit + overrides del request)"
+        sudo:
+          type: boolean
+          example: false
+        debug_level:
+          type: string
+          enum: [none, errors, full]
+          example: none
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed, cancelled, cancelled_unsafe]
+          example: completed
+        output:
+          type: string
+          nullable: true
+          description: "Solo se devuelve si debug_level es errors o full"
+        error:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    OperationLaunch:
+      type: object
+      required: [server_id, kit_id]
+      properties:
+        server_id:
+          type: string
+          example: "srv_1a2b3c4d"
+        kit_id:
+          type: string
+          example: "kit_1a2b3c4d"
+        values:
+          type: object
+          additionalProperties: true
+          default: {}
+          description: "Sobreescriben los valores por defecto del kit"
+        sudo:
+          type: boolean
+          default: false
+        debug_level:
+          type: string
+          enum: [none, errors, full]
+          description: "Si no se especifica, hereda el debug_level del ikctl.yaml del kit"
+        timeout_seconds:
+          type: integer
+          default: 1800
+          example: 600
+
+    PaginatedOperations:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Operation'
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+
+    # ── Pipelines ─────────────────────────────────────────────────────────────
+    PipelineKit:
+      type: object
+      required: [kit_id]
+      properties:
+        kit_id:
+          type: string
+          example: "kit_1a2b3c4d"
+        sudo:
+          type: boolean
+          nullable: true
+          description: "Si no se especifica, hereda el sudo global del pipeline"
+        debug_level:
+          type: string
+          enum: [none, errors, full]
+          nullable: true
+          description: "Si no se especifica, hereda el debug_level global del pipeline"
+        values:
+          type: object
+          additionalProperties: true
+          default: {}
+
+    Pipeline:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "pipe_1a2b3c4d"
+        user_id:
+          type: string
+        name:
+          type: string
+          example: "Install Kubernetes Cluster"
+        description:
+          type: string
+          nullable: true
+        targets:
+          type: array
+          items:
+            type: object
+            properties:
+              server_id:
+                type: string
+                example: "srv_1a2b3c4d"
+          description: "Lista de servidores target. No puede incluir el servidor local"
+        kits:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineKit'
+        sudo:
+          type: boolean
+          default: false
+          description: "Default global — heredado por kits que no especifiquen sudo"
+        debug_level:
+          type: string
+          enum: [none, errors, full]
+          default: none
+          description: "Default global — heredado por kits que no especifiquen debug_level"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PipelineCreate:
+      type: object
+      required: [name, targets, kits]
+      properties:
+        name:
+          type: string
+          example: "Install Kubernetes Cluster"
+        description:
+          type: string
+        targets:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [server_id]
+            properties:
+              server_id:
+                type: string
+        kits:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PipelineKit'
+        sudo:
+          type: boolean
+          default: false
+        debug_level:
+          type: string
+          enum: [none, errors, full]
+          default: none
+
+    PipelineUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        targets:
+          type: array
+          items:
+            type: object
+            properties:
+              server_id:
+                type: string
+        kits:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineKit'
+        sudo:
+          type: boolean
+        debug_level:
+          type: string
+          enum: [none, errors, full]
+
+    PipelineOperationRef:
+      type: object
+      properties:
+        operation_id:
+          type: string
+        server_id:
+          type: string
+        kit_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed, cancelled, cancelled_unsafe]
+
+    PipelineExecution:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "pexec_1a2b3c4d"
+        pipeline_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed, partial]
+          example: in_progress
+          description: >
+            completed: todas las operaciones completaron con éxito.
+            failed: todas terminaron sin ninguna en completed.
+            partial: al menos una completed y al menos una failed/cancelled_unsafe.
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineOperationRef'
+        launched_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    PipelineExecutionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [completed, failed, partial]
+        total_operations:
+          type: integer
+          example: 6
+        completed_operations:
+          type: integer
+          example: 5
+        failed_operations:
+          type: integer
+          example: 1
+        launched_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+
+    PaginatedPipelines:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pipeline'
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+
   responses:
     BadRequest:
       description: Petición inválida
@@ -653,3 +2323,43 @@ components:
           example:
             error: "unauthorized"
             message: "Token inválido o expirado"
+
+    Forbidden:
+      description: Acceso denegado — el recurso no pertenece al usuario autenticado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "forbidden"
+            message: "No tienes permisos para acceder a este recurso"
+
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "not_found"
+            message: "Recurso no encontrado"
+
+    Conflict:
+      description: Conflicto — el recurso está en uso o ya existe
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "conflict"
+            message: "El recurso está en uso y no puede eliminarse"
+
+    UnprocessableEntity:
+      description: Datos válidos en formato pero inválidos en lógica de negocio
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "unprocessable_entity"
+            message: "El kit debe tener sync_status synced para lanzar una operación"

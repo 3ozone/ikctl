@@ -77,6 +77,30 @@ Si servidor falla 5 veces consecutivas:
 - Rechazar nuevas operaciones por 5min
 - Attempt recovery automático tras cooldown
 
+### 6. File Cache por SHA-256 (transferencia SFTP)
+
+Antes de transferir ficheros del kit al servidor remoto, se compara el hash SHA-256 del fichero renderizado (post-Jinja2) contra el último hash almacenado en DB. Solo se transfieren ficheros nuevos o modificados.
+
+```sql
+-- Tabla de caché de ficheros por servidor y kit
+CREATE TABLE server_kit_file_cache (
+    server_id   VARCHAR(36) NOT NULL,
+    kit_id      VARCHAR(36) NOT NULL,
+    filename    VARCHAR(512) NOT NULL,
+    content_hash CHAR(64) NOT NULL,  -- SHA-256 hex
+    uploaded_at DATETIME NOT NULL,
+    PRIMARY KEY (server_id, kit_id, filename)
+);
+```
+
+Flujo de transferencia idempotente:
+
+1. Renderizar ficheros del kit con Jinja2 → calcular SHA-256 de cada uno
+2. Consultar `server_kit_file_cache` para ese `(server_id, kit_id)`
+3. Transferir solo los ficheros cuyo hash difiere o no existen en caché
+4. Actualizar caché con nuevos hashes tras transferencia exitosa
+5. **Auto-repair**: si SFTP detecta que ficheros ya no existen en el servidor, invalidar caché completa del kit y re-transferir todo
+
 ## Alternativas Consideradas
 
 | Alternativa | Pros | Contras | Decisión |
@@ -84,6 +108,7 @@ Si servidor falla 5 veces consecutivas:
 | **Sin idempotencia** | Simple | Estados inconsistentes | ❌ Inaceptable |
 | **Lock optimista (version)** | Previene race conditions | No previene duplicados | Insuficiente |
 | **Deduplication window** | Simple (5min cache) | No funciona para retries tardíos | Complementario |
+| **SHA-256 file cache** | Evita re-transfer de ficheros sin cambios | Solo aplica a SFTP, no a comandos SSH | ✅ Implementado |
 
 ## Consecuencias
 
@@ -93,6 +118,7 @@ Si servidor falla 5 veces consecutivas:
 ✅ **Consistencia garantizada**: mismo operation_id = mismo resultado  
 ✅ **Auditoría completa**: historial de todas las ejecuciones  
 ✅ **Recovery automático**: circuit breaker evita cascading failures  
+✅ **Sin re-transfer de ficheros**: SHA-256 cache evita reenviar ficheros idénticos al servidor remoto  
 
 ### Negativas
 

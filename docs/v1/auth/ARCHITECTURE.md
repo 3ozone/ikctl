@@ -255,3 +255,90 @@ LoginResponse               ← Pydantic schema → JSON HTTP 200
 | [ADR-006](../adrs/006-error-handling-strategy.md) | Excepciones Python nativas (no Result/Either) |
 | [ADR-007](../adrs/007-clean-architecture.md) | Clean Architecture con CQRS y DI manual |
 | [ADR-008](../adrs/008-event-driven-observability.md) | InMemoryEventBus en Fase 1 (monolito modular) |
+
+---
+
+## Diagramas
+
+### Ciclo de vida del usuario
+
+```mermaid
+stateDiagram-v2
+    [*] --> unverified : RegisterUser
+    unverified --> verified : VerifyEmail
+    unverified --> unverified : ResendVerification
+
+    verified --> verified_2fa : Enable2FA
+    verified_2fa --> verified : Disable2FA
+
+    verified --> [*] : DeleteAccount
+    verified_2fa --> [*] : DeleteAccount
+```
+
+### Flujo de autenticación (POST /login)
+
+```mermaid
+sequenceDiagram
+    actor Client
+    participant Router as routes.py
+    participant VLP as VerifyPassword
+    participant LAT as LoginAttemptTracker
+    participant CT as CreateTokens
+    participant DB as MariaDB
+    participant Valkey
+
+    Client->>Router: POST /api/v1/auth/login {email, password}
+    Router->>LAT: is_blocked(email)
+    LAT->>Valkey: GET attempts:{email}
+    Valkey-->>LAT: count
+    alt bloqueado (≥5 intentos en 15min)
+        LAT-->>Router: True
+        Router-->>Client: 429 Too Many Requests
+    else no bloqueado
+        Router->>DB: find_by_email(email)
+        DB-->>Router: User entity
+        Router->>VLP: execute(plain, hash)
+        VLP-->>Router: ok / InvalidPasswordError
+        alt contraseña incorrecta
+            Router->>LAT: record_failed_attempt(email)
+            Router-->>Client: 401 Unauthorized
+        else contraseña correcta
+            Router->>CT: execute(user)
+            CT->>DB: save(RefreshToken)
+            CT-->>Router: TokenPair
+            alt requiere 2FA
+                Router-->>Client: 200 {requires_2fa: true, user_id}
+            else sin 2FA
+                Router-->>Client: 200 {access_token, refresh_token}
+            end
+        end
+    end
+```
+
+### Flujo OAuth GitHub (GET /login/github → callback)
+
+```mermaid
+sequenceDiagram
+    actor Client
+    participant Router as routes.py
+    participant GHO as HttpxGitHubOAuth
+    participant AGH as AuthenticateWithGitHub
+    participant DB as MariaDB
+
+    Client->>Router: GET /api/v1/auth/login/github
+    Router->>GHO: get_authorization_url()
+    Router-->>Client: 302 redirect → github.com/oauth
+
+    Client->>Router: GET /api/v1/auth/login/github/callback?code=...
+    Router->>GHO: exchange_code_for_token(code)
+    GHO-->>Router: access_token
+    Router->>GHO: get_user_info(access_token)
+    GHO-->>Router: {github_id, email, name}
+    Router->>AGH: execute(github_id, email, name)
+    AGH->>DB: find_by_email(email)
+    alt usuario nuevo
+        AGH->>DB: save(User — verified, sin password)
+    end
+    AGH-->>Router: TokenPair
+    Router-->>Client: 200 {access_token, refresh_token}
+```

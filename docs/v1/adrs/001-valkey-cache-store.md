@@ -17,15 +17,29 @@ Necesitamos alta velocidad (<10ms latencia), soporte TTL automático, y persiste
 
 ## Decisión
 
-Adoptamos **Valkey** como cache store principal.
+Adoptamos **Valkey** como cache store principal con una estrategia por fases.
+
+### Estrategia por Fases
+
+**v1 (actual):**
+- Valkey se usa exclusivamente para JWT blacklist y sesiones de auth (ya implementado)
+- Rate limiting de operaciones SSH usa implementación InMemory (`InMemoryRateLimiter`)
+- Task queue usa FastAPI BackgroundTasks (`InMemoryTaskQueue`)
+- El puerto `RateLimiter` ABC en `application/interfaces/` permite swapear sin tocar dominio
+
+**v2:**
+- Rate limiting de operaciones SSH migra a Valkey (distribuido, múltiples instancias)
+- Task queue migra a ARQ + Valkey (`ARQTaskQueue`)
+- Valkey Streams para eventos de dominio entre módulos
 
 ### Configuración
 
 - **Tokens JWT blacklist**: TTL dinámico según expiración del token
 - **Sesiones**: access tokens 15min, refresh tokens 7 días
-- **Rate limiting**: contadores con TTL de 1 min/15min/1h según tipo
-- **Cache queries**: TTL 5min para listados, 1h para datos estáticos
-- **Pub/Sub (Valkey Streams)**: eventos de dominio para desacoplamiento entre módulos
+- **Rate limiting (v1)**: InMemory con TTL en proceso
+- **Rate limiting (v2)**: Valkey con contadores TTL de 1 min/15min/1h según tipo
+- **Cache queries (v2)**: TTL 5min para listados, 1h para datos estáticos
+- **Pub/Sub (v2)**: Valkey Streams para eventos de dominio entre módulos
 
 ## Alternativas Consideradas
 

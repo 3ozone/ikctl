@@ -14,15 +14,22 @@ Este directorio contiene las **decisiones arquitectónicas globales** para ikctl
 | [006](006-error-handling-strategy.md) | Estrategia de Manejo de Errores | ✅ Aceptado | 2026-02-21 |
 | [007](007-clean-architecture.md) | Clean Architecture (Domain, Application, Infrastructure) | ✅ Aceptado | 2026-02-21 |
 | [008](008-event-driven-observability.md) | Event-Driven Architecture & Observability | ✅ Aceptado | 2026-02-21 |
+| [009](009-git-as-kit-source.md) | Git como Fuente de Kits (GitOps) | ✅ Aceptado | 2026-03-22 |
+| [010](010-credential-types.md) | Entidad Credential Unificada con Tipos (SSH y Git) | ✅ Aceptado | 2026-03-22 |
+| [011](011-task-queue-strategy.md) | Estrategia de Cola de Tareas — BackgroundTasks (v1) → ARQ + Valkey (v2) | ✅ Aceptado | 2026-03-22 |
+| [012](012-local-connection-adapter.md) | LocalConnectionAdapter para Ejecución Local | ✅ Aceptado | 2026-03-22 |
+| [013](013-sftp-sha256-file-cache.md) | Caché de Ficheros por SHA-256 en Transferencia SFTP | ✅ Aceptado | 2026-03-22 |
+| [014](014-soft-delete-kits.md) | Soft Delete para Kits | ✅ Aceptado | 2026-03-22 |
 
 ## Decisiones por Módulo
 
-Para decisiones específicas de módulos individuales, consulta:
+Las decisiones específicas de un módulo viven junto al módulo. Los ADRs globales (esta carpeta) afectan a múltiples módulos o a la arquitectura transversal.
 
-- [auth/adrs/](../auth/adrs/) - Autenticación y autorización
-- [servers/adrs/](../servers/adrs/) - Gestión de servidores
-- [operations/adrs/](../operations/adrs/) - Ejecución de operaciones
-- [users/adrs/](../users/adrs/) - Gestión de usuarios
+- [auth/adrs/](../auth/adrs/) — Autenticación, JWT, OAuth2, 2FA
+- `kits/adrs/` — (pendiente de crear cuando el módulo tenga decisiones propias)
+- `servers/adrs/` — (pendiente)
+- `operations/adrs/` — (pendiente)
+- `pipelines/adrs/` — (pendiente)
 
 ## Formato de ADR
 

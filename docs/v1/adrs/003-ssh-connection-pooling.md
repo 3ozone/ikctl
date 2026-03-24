@@ -45,7 +45,7 @@ Implementar **SSH Connection Pool** reutilizable:
 ### Estrategia Híbrida
 
 - **Operaciones rápidas** (health checks, queries): async directo en API endpoints
-- **Operaciones largas** (installs, backups): Celery workers con asyncssh (mejor throughput)
+- **Operaciones largas** (installs, backups): FastAPI BackgroundTasks (v1) / ARQ workers + Valkey (v2) con asyncssh (mejor throughput)
 
 ## Alternativas Consideradas
 
@@ -159,10 +159,9 @@ async def check_server_health(server_id: str, pool: AsyncSSHConnectionPool):
         result = await conn.run("uptime", check=True, timeout=10)
         return {"status": "healthy", "uptime": result.stdout}
 
-# Uso en Celery worker (también async)
-@celery.task
+# Uso en FastAPI BackgroundTasks (v1) / ARQ worker (v2)
 async def install_application(server_id: str, app_name: str):
-    """Operación larga en workerAsync."""
+    """Operación larga en background task."""
     pool = get_pool_for_server(server_id)
     async with pool.get_connection() as conn:
         result = await conn.run(
@@ -195,12 +194,12 @@ async def install_application(server_id: str, app_name: str):
 2. **SSH es I/O bound**: 700ms handshake = CPU idle esperando red
 3. **Throughput 5-10x mayor**: 500+ operaciones vs 50-100 con threads
 4. **Escalabilidad sin infra**: 1 proceso maneja 1000+ conexiones
-5. **Workers Celery**: también soportan async para mejor eficiencia
+5. **FastAPI BackgroundTasks (v1) / ARQ workers (v2)**: async nativo, sin overhead de broker para v1
 
 ### Estrategia de Adopción
 
 **Fase 1** (MVP): Async directo en health checks y queries rápidas  
-**Fase 2**: Celery workers async para operaciones largas  
+**Fase 2**: FastAPI BackgroundTasks para operaciones largas (v1) → migrar a ARQ + Valkey en v2  
 **Fase 3**: Full async end-to-end con monitoring optimizado  
 
 ## Referencias

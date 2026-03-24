@@ -19,6 +19,17 @@
 - Usar `multi_replace_string_in_file` para varios archivos diferentes sin aprobación previa
 - Continuar a la siguiente tarea sin confirmación explícita del usuario
 
+### 📋 EXCEPCIÓN: Ficheros de planificación
+
+Los ficheros `TASKS.md` (y cualquier fichero de documentación o planificación) **NO se rigen por el flujo estricto de creación de código**. Son guías de trabajo, no código. Se pueden actualizar libremente sin necesidad de test previo ni aprobación paso a paso. Aplica igualmente:
+
+- `docs/v1/*/tasks/TASKS.md`
+- `docs/v1/*/requirements.md`
+- `docs/v1/*/adrs/*.md`
+- `AGENTS.md`
+- `README.md`
+- `openapi.yaml`
+
 ### ✅ Ejemplo CORRECTO
 
 ```

@@ -23,14 +23,32 @@ Requisitos:
 
 ## Decisión
 
-Adoptamos **MariaDB** como base de datos principal.
+Adoptamos **MariaDB** como base de datos principal con una estrategia de **una base de datos por módulo** dentro de un único servidor MariaDB. Esta estrategia permite evolucionar hacia microservicios en el futuro moviendo cada base de datos a su propio servidor sin cambiar el código de dominio.
 
-### Esquema de ownership
+### Bases de datos por módulo
 
-- `auth`: tablas de usuarios, tokens, verificaciones
-- `servers`: inventario de servidores, credenciales
-- `operations`: historial de ejecuciones SSH, logs
-- `shared`: eventos de dominio, outbox pattern
+| Base de datos | Módulo | Tablas principales |
+|--------------|--------|--------------------|
+| `ikctl_auth` | Auth | `users`, `refresh_tokens`, `verification_tokens`, `password_history` |
+| `ikctl_servers` | Servers | `servers`, `credentials`, `server_groups`, `server_kit_file_cache` |
+| `ikctl_kits` | Kits | `kits`, `kit_files` |
+| `ikctl_operations` | Operations | `operations` |
+| `ikctl_pipelines` | Pipelines | `pipelines`, `pipeline_executions` |
+
+### Reglas entre módulos
+
+- **Sin Foreign Keys cross-DB**: las referencias entre módulos son IDs simples (strings/UUIDs), no FK reales
+- **Sin JOINs cross-DB**: la capa de aplicación (use cases) resuelve las referencias consultando cada repositorio por separado
+- **Migraciones independientes**: cada módulo tiene su propio directorio Alembic y sus propias versiones
+- **Atomicidad**: dentro de un módulo las transacciones son ACID. Entre módulos se usa lógica de compensación en el use case si es necesario
+
+### Evolución a microservicios (v3+)
+
+Cada base de datos puede moverse a su propio servidor MariaDB cambiando únicamente la `DATABASE_URL` de ese módulo. El código de dominio no cambia.
+
+### Migración desde `ikctl_db`
+
+La base de datos original `ikctl_db` del módulo auth se renombra a `ikctl_auth` para consistencia. Impacta solo a archivos de configuración: `settings.py`, `alembic.ini`, `docker-compose.yml`, `docker/init.sql`.
 
 ## Alternativas Consideradas
 
