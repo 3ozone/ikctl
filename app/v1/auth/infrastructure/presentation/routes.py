@@ -342,7 +342,7 @@ async def login(
     return LoginResponse(
         access_token=access_token_obj.token,
         refresh_token=refresh_token_value,
-        token_type="bearer",
+        token_type="Bearer",
         expires_in=CreateTokens.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
@@ -430,7 +430,7 @@ async def login_github_callback(
     return LoginResponse(
         access_token=result.access_token,
         refresh_token=result.refresh_token,
-        token_type="bearer",
+        token_type="Bearer",
         expires_in=CreateTokens.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
@@ -510,7 +510,7 @@ async def login_2fa(
     return LoginResponse(
         access_token=access_token_obj.token,
         refresh_token=refresh_token_obj.token,
-        token_type="bearer",
+        token_type="Bearer",
         expires_in=CreateTokens.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
@@ -574,7 +574,7 @@ async def refresh(
 
     return LoginResponse(
         access_token=new_access_token,
-        token_type="bearer",
+        token_type="Bearer",
         expires_in=RefreshAccessToken.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 

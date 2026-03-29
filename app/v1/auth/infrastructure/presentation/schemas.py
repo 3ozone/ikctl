@@ -140,7 +140,7 @@ class TokenResponse(BaseModel):
     """Response con access_token — el refresh_token va en HttpOnly cookie (T-51.2)."""
 
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = "Bearer"
     expires_in: int = Field(
         description="Segundos hasta la expiración del access_token")
 

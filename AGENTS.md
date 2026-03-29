@@ -306,6 +306,42 @@ class GetUserProfile:
 - **Documentación**: Todos los métodos públicos documentan `Raises:` en docstrings
 - **Testing**: Cada caso de uso debe tener tests de error con `pytest.raises(SpecificError)`
 
+### Estructura de Excepciones por Módulo
+
+Cada módulo sigue este patrón consistente (ejemplo: `servers`):
+
+```
+<modulo>/
+├── domain/
+│   └── exceptions/
+│       ├── __init__.py         ← vacío
+│       ├── <entidad>.py        ← hereda de shared/domain DomainException
+│       └── ...                 ← un fichero por entidad (granularidad de dominio)
+│
+├── application/
+│   └── exceptions.py           ← fichero único con UseCaseException + todas las excepciones de app
+│
+└── infrastructure/
+    └── exceptions.py           ← fichero único con InfrastructureException + excepciones técnicas
+```
+
+**Reglas:**
+
+- `domain/exceptions/<entidad>.py` importa `DomainException` de `app.v1.shared.domain.exceptions` — el dominio no depende de ninguna otra capa, pero sí puede usar `shared/domain` (capa transversal pura)
+- `application/exceptions.py` define `UseCaseException(Exception)` como base propia del módulo — **no importa de `shared`**
+- `infrastructure/exceptions.py` define su propia base o importa de `shared/infrastructure` — nunca de dominio ni aplicación
+- **Sin barrels**: los `__init__.py` de carpetas de excepciones se dejan vacíos, nunca re-exportan
+- **Sin dependencias cruzadas**: ningún fichero de excepciones del mismo nivel importa de otro del mismo nivel
+
+**Dónde vive cada tipo de excepción:**
+
+| Tipo | Capa | Ejemplo |
+|------|------|---------|
+| Violación de invariante de negocio | `domain/exceptions/` | `InvalidCredentialConfigurationError` |
+| Entidad no encontrada | `domain/exceptions/` | `CredentialNotFoundError` |
+| Error de orquestación / regla de aplicación | `application/exceptions.py` | `DuplicateLocalServerError`, `ServerInUseError` |
+| Error técnico (BD, red, cifrado) | `infrastructure/exceptions.py` | `DatabaseQueryError`, `EncryptionError` |
+
 ## 🚦 Proceso para Crear un Nuevo Módulo
 
 1. **Documentación Inicial**

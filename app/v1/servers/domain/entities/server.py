@@ -66,6 +66,39 @@ class Server:
         """Desactiva el servidor cambiando su estado a inactive."""
         self.status = ServerStatus("inactive")
 
+    def update(
+        self,
+        name: str,
+        description: str | None,
+        updated_at: datetime,
+        host: str | None = None,
+        port: int | None = None,
+        credential_id: str | None = None,
+    ) -> None:
+        """Actualiza los campos mutables del servidor.
+
+        Para servidores remote: actualiza name, description, host, port y credential_id.
+        Para servidores local: solo actualiza name y description (host y credential_id se ignoran).
+
+        Args:
+            name: Nuevo nombre descriptivo.
+            description: Nueva descripción opcional.
+            updated_at: Timestamp de la actualización.
+            host: Nuevo host (solo aplica a remote).
+            port: Nuevo puerto (solo aplica a remote).
+            credential_id: Nueva credencial (solo aplica a remote).
+        """
+        self.name = name
+        self.description = description
+        self.updated_at = updated_at
+        if self.type.value == "remote":
+            if host is not None:
+                self.host = host
+            if port is not None:
+                self.port = port
+            if credential_id is not None:
+                self.credential_id = credential_id
+
     def update_os_info(self, os_id: str, os_version: str, os_name: str) -> None:
         """Actualiza la información del sistema operativo detectado.
 

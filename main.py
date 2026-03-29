@@ -39,6 +39,16 @@ from app.v1.shared.infrastructure.database import (
 )
 from app.v1.shared.infrastructure.cache import create_valkey_client, close_valkey_client
 from app.v1.auth.infrastructure.presentation.routes import router as auth_router
+from app.v1.servers.infrastructure.repositories.credential_repository import (
+    SQLAlchemyCredentialRepository,
+)
+from app.v1.servers.infrastructure.repositories.server_repository import (
+    SQLAlchemyServerRepository,
+)
+from app.v1.servers.infrastructure.repositories.group_repository import (
+    SQLAlchemyGroupRepository,
+)
+from app.v1.servers.infrastructure.adapters.connection_factory import ConnectionFactory
 
 # ---------------------------------------------------------------------------
 # Singleton: Settings
@@ -127,6 +137,37 @@ def get_password_history_repository(
 ) -> SQLAlchemyPasswordHistoryRepository:
     """Dependencia FastAPI — proporciona un PasswordHistoryRepository con sesión scoped."""
     return SQLAlchemyPasswordHistoryRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Scoped: repositories módulo servers
+# ---------------------------------------------------------------------------
+def get_credential_repository(
+    session: AsyncSession = Depends(get_db_session_dep),
+) -> SQLAlchemyCredentialRepository:
+    """Dependencia FastAPI — proporciona un CredentialRepository con sesión scoped."""
+    return SQLAlchemyCredentialRepository(session, encryption_key=settings.ENCRYPTION_KEY)
+
+
+def get_server_repository(
+    session: AsyncSession = Depends(get_db_session_dep),
+) -> SQLAlchemyServerRepository:
+    """Dependencia FastAPI — proporciona un ServerRepository con sesión scoped."""
+    return SQLAlchemyServerRepository(session)
+
+
+def get_group_repository(
+    session: AsyncSession = Depends(get_db_session_dep),
+) -> SQLAlchemyGroupRepository:
+    """Dependencia FastAPI — proporciona un GroupRepository con sesión scoped."""
+    return SQLAlchemyGroupRepository(session)
+
+
+def get_connection_factory(
+    credential_repo: SQLAlchemyCredentialRepository = Depends(get_credential_repository),
+) -> ConnectionFactory:
+    """Dependencia FastAPI — proporciona una ConnectionFactory con sesión scoped."""
+    return ConnectionFactory(credential_repository=credential_repo)
 
 
 # ---------------------------------------------------------------------------
