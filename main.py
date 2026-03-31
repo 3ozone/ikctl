@@ -39,6 +39,9 @@ from app.v1.shared.infrastructure.database import (
 )
 from app.v1.shared.infrastructure.cache import create_valkey_client, close_valkey_client
 from app.v1.auth.infrastructure.presentation.routes import router as auth_router
+from app.v1.servers.infrastructure.presentation.exception_handlers import register_exception_handlers as register_servers_exception_handlers
+from app.v1.servers.infrastructure.presentation.routes_credentials import router as credentials_router
+from app.v1.servers.infrastructure.presentation.routes_servers import router as servers_router
 from app.v1.servers.infrastructure.repositories.credential_repository import (
     SQLAlchemyCredentialRepository,
 )
@@ -185,6 +188,7 @@ async def lifespan(app: FastAPI):  # noqa: ANN001
     app.state.rate_limiter = rate_limiter
     app.state.login_attempt_tracker = login_attempt_tracker
     app.state.session_factory = _session_factory
+    app.state.encryption_key = settings.ENCRYPTION_KEY
     yield
     # Shutdown
     await _engine.dispose()
@@ -219,6 +223,7 @@ def create_app() -> FastAPI:
     )
 
     register_exception_handlers(app)
+    register_servers_exception_handlers(app)
 
     # Health checks
     @app.get("/")
@@ -242,6 +247,10 @@ def create_app() -> FastAPI:
 
     # T-34+ — routers auth
     app.include_router(auth_router)
+
+    # T-45+ — routers servers
+    app.include_router(credentials_router)
+    app.include_router(servers_router)
 
     return app
 

@@ -52,7 +52,8 @@ def _make_process_result(returncode: int = 0, stdout: str = "", stderr: str = ""
 async def test_execute_returns_stdout_stderr_returncode():
     """Test 1: execute retorna (returncode, stdout, stderr) del proceso remoto."""
     adapter = _make_adapter()
-    process_result = _make_process_result(returncode=0, stdout="hello\n", stderr="")
+    process_result = _make_process_result(
+        returncode=0, stdout="hello\n", stderr="")
 
     mock_conn = AsyncMock()
     mock_conn.run = AsyncMock(return_value=process_result)
@@ -73,7 +74,8 @@ async def test_execute_returns_stdout_stderr_returncode():
 async def test_execute_with_sudo_prefixes_command():
     """Test 2: execute con sudo=True antepone 'sudo' al comando."""
     adapter = _make_adapter()
-    process_result = _make_process_result(returncode=0, stdout="root\n", stderr="")
+    process_result = _make_process_result(
+        returncode=0, stdout="root\n", stderr="")
 
     mock_conn = AsyncMock()
     mock_conn.run = AsyncMock(return_value=process_result)
@@ -157,7 +159,8 @@ async def test_upload_file_calls_sftp_put():
     ):
         await adapter.upload_file("/local/path/file.sh", "/remote/path/file.sh")
 
-    mock_sftp.put.assert_awaited_once_with("/local/path/file.sh", "/remote/path/file.sh")
+    mock_sftp.put.assert_awaited_once_with(
+        "/local/path/file.sh", "/remote/path/file.sh")
 
 
 @pytest.mark.asyncio

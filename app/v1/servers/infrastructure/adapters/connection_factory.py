@@ -7,13 +7,14 @@ en claro.
 Para servidores `local`: devuelve un LocalConnectionAdapter sin consultar credenciales.
 """
 from app.v1.servers.application.interfaces.connection import Connection
+from app.v1.servers.application.interfaces.connection_factory import ConnectionFactory as ConnectionFactoryPort
 from app.v1.servers.application.interfaces.credential_repository import CredentialRepository
 from app.v1.servers.domain.entities.server import Server
 from app.v1.servers.infrastructure.adapters.local_connection import LocalConnectionAdapter
 from app.v1.servers.infrastructure.adapters.ssh_connection import SSHConnectionAdapter
 
 
-class ConnectionFactory:
+class ConnectionFactory(ConnectionFactoryPort):
     """Factory que construye el adaptador de conexión adecuado para un servidor."""
 
     def __init__(self, credential_repository: CredentialRepository) -> None:

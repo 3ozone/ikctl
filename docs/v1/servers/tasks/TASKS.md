@@ -87,25 +87,25 @@
 
 ### Composition Root
 
-- [ ] **T-36.1**: Extender `main.py` (Composition Root) con los adaptadores del módulo servers — `SQLAlchemyCredentialRepository`, `SQLAlchemyServerRepository`, `SQLAlchemyGroupRepository`, `ConnectionFactory`, `SSHConnectionAdapter` (singleton del pool), `LocalConnectionAdapter` (singleton). Inyectar en todos los use cases del módulo sera `ENCRYPTION_KEY` en `SQLAlchemyCredentialRepository`
+- [x] **T-36.1**: Extender `main.py` (Composition Root) con los adaptadores del módulo servers — `SQLAlchemyCredentialRepository`, `SQLAlchemyServerRepository`, `SQLAlchemyGroupRepository`, `ConnectionFactory`, `SSHConnectionAdapter` (singleton del pool), `LocalConnectionAdapter` (singleton). Inyectar en todos los use cases del módulo sera `ENCRYPTION_KEY` en `SQLAlchemyCredentialRepository`
 
 ### Persistence Models
 
-- [ ] **T-37**: Modelos SQLAlchemy en `infrastructure/persistence/models.py` — tablas `credentials`, `servers`, `groups`, `group_members`
+- [x] **T-37**: Modelos SQLAlchemy en `infrastructure/persistence/models.py` — tablas `credentials`, `servers`, `groups`, `group_members` ✅ (creado en T-31)
 
 ### Database Migrations (Alembic)
 
-- [ ] **T-38**: Alembic migration: tabla `credentials` — campos `id`, `user_id`, `name`, `type`, `username`, `password_encrypted` (nullable), `private_key_encrypted` (nullable). Índices: `user_id`, `type`
-- [ ] **T-39**: Alembic migration: tabla `servers` — campos `id`, `user_id`, `name`, `type`, `status`, `host` (nullable), `port` (nullable), `credential_id` (FK → credentials, nullable), `description`, `os_id`, `os_version`, `os_name`, `created_at`, `updated_at`. Índices: `user_id`, `status`, `credential_id`
-- [ ] **T-40**: Alembic migration: tabla `groups` — campos `id`, `user_id`, `name`, `description`, `created_at`, `updated_at`. Índice: `user_id`
-- [ ] **T-41**: Alembic migration: tabla `group_members` — campos `group_id` (FK → groups), `server_id` (FK → servers). PK compuesta `(group_id, server_id)`
+- [x] **T-38**: Alembic migration: tabla `credentials` — campos `id`, `user_id`, `name`, `type`, `username`, `password_encrypted` (nullable), `private_key_encrypted` (nullable). Índices: `user_id`, `type` ✅ GREEN
+- [x] **T-39**: Alembic migration: tabla `servers` — campos `id`, `user_id`, `name`, `type`, `status`, `host` (nullable), `port` (nullable), `credential_id` (FK → credentials, nullable), `description`, `os_id`, `os_version`, `os_name`, `created_at`, `updated_at`. Índices: `user_id`, `status`, `credential_id` ✅ GREEN
+- [x] **T-40**: Alembic migration: tabla `groups` — campos `id`, `user_id`, `name`, `description`, `created_at`, `updated_at`. Índice: `user_id` ✅ GREEN
+- [x] **T-41**: Alembic migration: tabla `group_members` — campos `group_id` (FK → groups), `server_id` (FK → servers). PK compuesta `(group_id, server_id)` ✅ GREEN
 
 ### Presentation
 
-- [ ] **T-42**: Schemas Pydantic en `infrastructure/presentation/schemas.py` — `CreateCredentialRequest`, `UpdateCredentialRequest`, `CredentialResponse`, `RegisterServerRequest`, `RegisterLocalServerRequest`, `UpdateServerRequest`, `ServerResponse`, `HealthCheckResponse`, `AdHocCommandRequest`, `AdHocCommandResponse`, `CreateGroupRequest`, `UpdateGroupRequest`, `GroupResponse`
-- [ ] **T-43**: `deps.py` — dependencias FastAPI: `get_current_user_id(token)` (integra con JWT del módulo auth), `get_db_session()`, factories de use cases con sus repositorios
-- [ ] **T-44**: Exception handlers en `exception_handlers.py` — mapea excepciones del módulo a códigos HTTP (`CredentialNotFoundError` → 404, `CredentialInUseError` → 409, `DuplicateLocalServerError` → 409, `ServerInUseError` → 409, `GroupInUseError` → 409)
-- [ ] **T-44.1**: Middleware rate limiting en `infrastructure/presentation/rate_limit_middleware.py` — health check: máx 10 req/min por usuario/servidor (RNF-07), comando ad-hoc: máx 30 req/hora por usuario. Implementación InMemory v1 (migrar a Valkey en v2). Devuelve 429 con `Retry-After` header al superar el límite — 4 tests
+- [x] **T-42**: Schemas Pydantic en `infrastructure/presentation/schemas.py` — `CreateCredentialRequest`, `UpdateCredentialRequest`, `CredentialResponse`, `RegisterServerRequest`, `RegisterLocalServerRequest`, `UpdateServerRequest`, `ServerResponse`, `HealthCheckResponse`, `AdHocCommandRequest`, `AdHocCommandResponse`, `CreateGroupRequest`, `UpdateGroupRequest`, `GroupResponse` ✅ GREEN
+- [x] **T-43**: `deps.py` — dependencias FastAPI: `get_current_user_id(token)` (integra con JWT del módulo auth), `get_db_session()`, factories de use cases con sus repositorios ✅ GREEN
+- [x] **T-44**: Exception handlers en `exception_handlers.py` — mapea excepciones del módulo a códigos HTTP (`CredentialNotFoundError` → 404, `CredentialInUseError` → 409, `DuplicateLocalServerError` → 409, `ServerInUseError` → 409, `GroupInUseError` → 409) ✅ GREEN
+- [x] **T-44.1**: Middleware rate limiting en `infrastructure/presentation/rate_limit_middleware.py` — health check: máx 10 req/min por usuario/servidor (RNF-07), comando ad-hoc: máx 30 req/hora por usuario. Implementación InMemory v1 (migrar a Valkey en v2). Devuelve 429 con `Retry-After` header al superar el límite — 4 tests ✅ GREEN
 
   **FASE 3 PENDIENTE: ~34 tests**
 
@@ -113,17 +113,17 @@
 
 ### Credentials Endpoints
 
-- [ ] **T-45**: `POST /api/v1/credentials` — crear credencial. Body: `CreateCredentialRequest`. Response 201: `CredentialResponse` (sin `password`/`private_key`)
-- [ ] **T-46**: `GET /api/v1/credentials` — listar credenciales paginadas. Query params: `page`, `per_page`. Response 200: lista `CredentialResponse`
-- [ ] **T-47**: `GET /api/v1/credentials/{id}` — obtener credencial. Response 200: `CredentialResponse` o 404
-- [ ] **T-48**: `PUT /api/v1/credentials/{id}` — actualizar credencial. Response 200: `CredentialResponse` o 404/403
-- [ ] **T-49**: `DELETE /api/v1/credentials/{id}` — eliminar credencial. Response 204 o 404/403/409 (en uso)
+- [x] **T-45**: `POST /api/v1/credentials` — crear credencial. Body: `CreateCredentialRequest`. Response 201: `CredentialResponse` (sin `password`/`private_key`) ✅ GREEN
+- [x] **T-46**: `GET /api/v1/credentials` — listar credenciales paginadas. Query params: `page`, `per_page`. Response 200: lista `CredentialResponse` ✅ GREEN
+- [x] **T-47**: `GET /api/v1/credentials/{id}` — obtener credencial. Response 200: `CredentialResponse` o 404 ✅ GREEN
+- [x] **T-48**: `PUT /api/v1/credentials/{id}` — actualizar credencial. Response 200: `CredentialResponse` o 404/403 ✅ GREEN
+- [x] **T-49**: `DELETE /api/v1/credentials/{id}` — eliminar credencial. Response 204 o 404/403/409 (en uso) ✅ GREEN
 
 ### Servers Endpoints
 
-- [ ] **T-50**: `POST /api/v1/servers` — registrar servidor (remote o local via discriminador `type`). Response 201: `ServerResponse`
-- [ ] **T-51**: `GET /api/v1/servers` — listar servidores paginados. Response 200: lista `ServerResponse`
-- [ ] **T-52**: `GET /api/v1/servers/{id}` — obtener servidor. Response 200: `ServerResponse` o 404
+- [x] **T-50**: `POST /api/v1/servers` — registrar servidor (remote o local via discriminador `type`). Response 201: `ServerResponse` ✅ GREEN
+- [x] **T-51**: `GET /api/v1/servers` — listar servidores paginados. Response 200: lista `ServerResponse` ✅ GREEN
+- [x] **T-52**: `GET /api/v1/servers/{id}` — obtener servidor. Response 200: `ServerResponse` o 404 ✅ GREEN
 - [ ] **T-53**: `PUT /api/v1/servers/{id}` — actualizar servidor. Response 200: `ServerResponse` o 404/403
 - [ ] **T-54**: `DELETE /api/v1/servers/{id}` — eliminar servidor. Response 204 o 404/403/409 (operaciones activas)
 - [ ] **T-55**: `POST /api/v1/servers/{id}/toggle` — habilitar/deshabilitar servidor. Body: `{"active": bool}`. Response 200: `ServerResponse`
