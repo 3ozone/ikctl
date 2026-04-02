@@ -13,25 +13,40 @@ Endpoints:
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
+from app.v1.servers.application.commands.delete_server import DeleteServer
 from app.v1.servers.application.commands.register_local_server import RegisterLocalServer
 from app.v1.servers.application.commands.register_server import RegisterServer
+from app.v1.servers.application.commands.toggle_server_status import ToggleServerStatus
+from app.v1.servers.application.commands.update_server import UpdateServer
+from app.v1.servers.application.queries.check_server_health import CheckServerHealth
+from app.v1.servers.application.queries.execute_ad_hoc_command import ExecuteAdHocCommand
 from app.v1.servers.application.queries.get_server import GetServer
 from app.v1.servers.application.queries.list_servers import ListServers
 from app.v1.servers.infrastructure.presentation.deps import (
+    get_check_server_health,
     get_current_user_id,
     get_current_user_role,
+    get_delete_server,
+    get_execute_ad_hoc_command,
     get_get_server,
     get_list_servers,
     get_register_local_server,
     get_register_server,
+    get_toggle_server_status,
+    get_update_server,
 )
 from app.v1.servers.infrastructure.presentation.schemas import (
+    AdHocCommandRequest,
+    AdHocCommandResponse,
+    HealthCheckResponse,
     RegisterLocalServerRequest,
     RegisterServerRequest,
     ServerListResponse,
     ServerResponse,
+    ToggleServerStatusRequest,
+    UpdateServerRequest,
 )
 from app.v1.shared.infrastructure.logger import get_logger
 
@@ -178,3 +193,163 @@ async def get_server(
     """
     result = await use_case.execute(user_id=user_id, server_id=server_id)
     return _to_server_response(result)
+
+
+@router.put("/{server_id}", status_code=status.HTTP_200_OK)
+async def update_server(
+    server_id: str,
+    body: UpdateServerRequest,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    use_case: Annotated[UpdateServer, Depends(get_update_server)],
+) -> ServerResponse:
+    """Actualiza un servidor existente del usuario autenticado.
+
+    Returns:
+        200 ServerResponse con los datos actualizados.
+
+    Raises:
+        404 si el servidor no existe o no pertenece al usuario.
+    """
+    correlation_id = str(uuid4())
+    result = await use_case.execute(
+        user_id=user_id,
+        server_id=server_id,
+        name=body.name,
+        host=body.host,
+        port=body.port,
+        credential_id=body.credential_id,
+        description=body.description,
+        correlation_id=correlation_id,
+    )
+    logger.info(
+        "server_updated",
+        user_id=user_id,
+        server_id=result.server_id,
+    )
+    return _to_server_response(result)
+
+
+@router.delete("/{server_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_server(
+    server_id: str,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    use_case: Annotated[DeleteServer, Depends(get_delete_server)],
+) -> Response:
+    """Elimina un servidor del usuario autenticado.
+
+    Returns:
+        204 sin body.
+
+    Raises:
+        404 si el servidor no existe o no pertenece al usuario.
+        409 si el servidor tiene operaciones activas.
+    """
+    correlation_id = str(uuid4())
+    await use_case.execute(
+        user_id=user_id,
+        server_id=server_id,
+        correlation_id=correlation_id,
+    )
+    logger.info(
+        "server_deleted",
+        user_id=user_id,
+        server_id=server_id,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{server_id}/toggle", status_code=status.HTTP_200_OK)
+async def toggle_server_status(
+    server_id: str,
+    body: ToggleServerStatusRequest,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    use_case: Annotated[ToggleServerStatus, Depends(get_toggle_server_status)],
+) -> ServerResponse:
+    """Activa o desactiva un servidor del usuario autenticado.
+
+    Returns:
+        200 ServerResponse con el estado actualizado.
+
+    Raises:
+        404 si el servidor no existe o no pertenece al usuario.
+    """
+    correlation_id = str(uuid4())
+    result = await use_case.execute(
+        user_id=user_id,
+        server_id=server_id,
+        active=body.active,
+        correlation_id=correlation_id,
+    )
+    logger.info(
+        "server_toggled",
+        user_id=user_id,
+        server_id=result.server_id,
+        active=body.active,
+    )
+    return _to_server_response(result)
+
+
+@router.get("/{server_id}/health", status_code=status.HTTP_200_OK)
+async def check_server_health(
+    server_id: str,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    use_case: Annotated[CheckServerHealth, Depends(get_check_server_health)],
+) -> HealthCheckResponse:
+    """Verifica la conectividad SSH y detecta el SO del servidor.
+
+    Returns:
+        200 HealthCheckResponse con status online/offline, latency_ms y OS info.
+
+    Raises:
+        404 si el servidor no existe o no pertenece al usuario.
+    """
+    result = await use_case.execute(user_id=user_id, server_id=server_id)
+    logger.info(
+        "server_health_checked",
+        user_id=user_id,
+        server_id=server_id,
+        status=result.status,
+    )
+    return HealthCheckResponse(
+        server_id=result.server_id,
+        status=result.status,
+        latency_ms=result.latency_ms,
+        os_id=result.os_id,
+        os_version=result.os_version,
+        os_name=result.os_name,
+    )
+
+
+@router.post("/{server_id}/command", status_code=status.HTTP_200_OK)
+async def execute_command(
+    server_id: str,
+    body: AdHocCommandRequest,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    use_case: Annotated[ExecuteAdHocCommand, Depends(get_execute_ad_hoc_command)],
+) -> AdHocCommandResponse:
+    """Ejecuta un comando ad-hoc en el servidor indicado.
+
+    Returns:
+        200 AdHocCommandResponse con stdout, stderr y exit_code.
+
+    Raises:
+        404 si el servidor no existe o no pertenece al usuario.
+    """
+    result = await use_case.execute(
+        user_id=user_id,
+        server_id=server_id,
+        command=body.command,
+    )
+    logger.info(
+        "server_command_executed",
+        user_id=user_id,
+        server_id=server_id,
+        exit_code=result.exit_code,
+    )
+    return AdHocCommandResponse(
+        server_id=result.server_id,
+        command=result.command,
+        stdout=result.stdout,
+        stderr=result.stderr,
+        exit_code=result.exit_code,
+    )

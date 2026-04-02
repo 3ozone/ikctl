@@ -41,6 +41,7 @@ from app.v1.shared.infrastructure.cache import create_valkey_client, close_valke
 from app.v1.auth.infrastructure.presentation.routes import router as auth_router
 from app.v1.servers.infrastructure.presentation.exception_handlers import register_exception_handlers as register_servers_exception_handlers
 from app.v1.servers.infrastructure.presentation.routes_credentials import router as credentials_router
+from app.v1.servers.infrastructure.presentation.routes_groups import router as groups_router
 from app.v1.servers.infrastructure.presentation.routes_servers import router as servers_router
 from app.v1.servers.infrastructure.repositories.credential_repository import (
     SQLAlchemyCredentialRepository,
@@ -251,6 +252,7 @@ def create_app() -> FastAPI:
     # T-45+ — routers servers
     app.include_router(credentials_router)
     app.include_router(servers_router)
+    app.include_router(groups_router)
 
     return app
 

@@ -16,8 +16,10 @@ from pydantic import BaseModel, Field
 class CreateCredentialRequest(BaseModel):
     """Body para POST /api/v1/credentials."""
 
-    name: str = Field(..., min_length=1, max_length=255, examples=["my-ssh-key"])
-    type: str = Field(..., examples=["ssh"], description="ssh | git_https | git_ssh")
+    name: str = Field(..., min_length=1, max_length=255,
+                      examples=["my-ssh-key"])
+    type: str = Field(..., examples=["ssh"],
+                      description="ssh | git_https | git_ssh")
     username: str | None = Field(None, max_length=255, examples=["root"])
     password: str | None = Field(None, max_length=1024, examples=["s3cr3t"])
     private_key: str | None = Field(
@@ -71,7 +73,8 @@ class RegisterServerRequest(BaseModel):
     """Body para POST /api/v1/servers — registrar servidor remoto."""
 
     name: str = Field(..., min_length=1, max_length=255, examples=["web-01"])
-    host: str = Field(..., min_length=1, max_length=255, examples=["192.168.1.10"])
+    host: str = Field(..., min_length=1, max_length=255,
+                      examples=["192.168.1.10"])
     port: int = Field(22, ge=1, le=65535, examples=[22])
     credential_id: str = Field(..., examples=["cred-uuid"])
     description: str | None = Field(None, max_length=1024)
@@ -80,14 +83,15 @@ class RegisterServerRequest(BaseModel):
 class RegisterLocalServerRequest(BaseModel):
     """Body para POST /api/v1/servers/local — registrar servidor local."""
 
-    name: str = Field(..., min_length=1, max_length=255, examples=["localhost"])
+    name: str = Field(..., min_length=1, max_length=255,
+                      examples=["localhost"])
     description: str | None = Field(None, max_length=1024)
 
 
 class UpdateServerRequest(BaseModel):
     """Body para PUT /api/v1/servers/{id}."""
 
-    name: str | None = Field(None, min_length=1, max_length=255)
+    name: str = Field(min_length=1, max_length=255)
     host: str | None = Field(None, max_length=255)
     port: int | None = Field(None, ge=1, le=65535)
     credential_id: str | None = Field(None)
@@ -154,7 +158,8 @@ class HealthCheckResponse(BaseModel):
 class AdHocCommandRequest(BaseModel):
     """Body para POST /api/v1/servers/{id}/exec."""
 
-    command: str = Field(..., min_length=1, max_length=2048, examples=["df -h"])
+    command: str = Field(..., min_length=1,
+                         max_length=2048, examples=["df -h"])
     sudo: bool = Field(False)
     timeout: int = Field(30, ge=1, le=600)
 
@@ -177,7 +182,8 @@ class AdHocCommandResponse(BaseModel):
 class CreateGroupRequest(BaseModel):
     """Body para POST /api/v1/groups."""
 
-    name: str = Field(..., min_length=1, max_length=255, examples=["k8s-nodes"])
+    name: str = Field(..., min_length=1, max_length=255,
+                      examples=["k8s-nodes"])
     description: str | None = Field(None, max_length=1024)
     server_ids: list[str] = Field(default_factory=list)
 
@@ -185,7 +191,7 @@ class CreateGroupRequest(BaseModel):
 class UpdateGroupRequest(BaseModel):
     """Body para PUT /api/v1/groups/{id}."""
 
-    name: str | None = Field(None, min_length=1, max_length=255)
+    name: str = Field(None, min_length=1, max_length=255)
     description: str | None = Field(None, max_length=1024)
     server_ids: list[str] | None = Field(None)
 
