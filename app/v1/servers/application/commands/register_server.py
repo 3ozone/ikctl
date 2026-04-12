@@ -32,7 +32,7 @@ class RegisterServer:
         name: str,
         host: str,
         port: int,
-        credential_id: str,
+        credential_id: str | None,
         description: str | None,
         correlation_id: str,
     ) -> ServerResult:
@@ -43,7 +43,7 @@ class RegisterServer:
             name: Nombre descriptivo del servidor
             host: Dirección IP o hostname del servidor
             port: Puerto SSH (por defecto 22)
-            credential_id: ID de la credencial SSH a usar
+            credential_id: ID de la credencial SSH (opcional al registrar)
             description: Descripción opcional del servidor
             correlation_id: ID de trazabilidad del request
 
@@ -51,10 +51,10 @@ class RegisterServer:
             ServerResult con los datos del servidor creado
 
         Raises:
-            CredentialNotFoundError: Si la credencial no existe o no pertenece al usuario
+            CredentialNotFoundError: Si se indica credential_id y no existe o no pertenece al usuario
             InvalidServerConfigurationError: Si la configuración del servidor es inválida
         """
-        if self._credential_repo is not None:
+        if credential_id is not None and self._credential_repo is not None:
             credential = await self._credential_repo.find_by_id(credential_id, user_id)
             if credential is None:
                 raise CredentialNotFoundError()

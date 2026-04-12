@@ -50,5 +50,5 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://0.0.0.0:3000"]
 
-    # Cifrado AES-256-GCM para credenciales en reposo (32 bytes en base64)
-    ENCRYPTION_KEY: str = "change-me-32-bytes-base64-encoded="
+    # Cifrado AES-256-GCM para credenciales en reposo (exactamente 32 bytes ASCII)
+    ENCRYPTION_KEY: str = "dev-only-key-change-in-prod-0000"

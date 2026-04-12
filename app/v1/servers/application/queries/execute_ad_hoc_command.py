@@ -2,7 +2,7 @@
 from app.v1.servers.application.dtos.ad_hoc_command_result import AdHocCommandResult
 from app.v1.servers.application.interfaces.connection_factory import ConnectionFactory
 from app.v1.servers.application.interfaces.server_repository import ServerRepository
-from app.v1.servers.domain.exceptions.server import ServerNotFoundError
+from app.v1.servers.domain.exceptions.server import ServerNotFoundError, ServerCredentialRequiredError
 
 
 class ExecuteAdHocCommand:
@@ -44,6 +44,9 @@ class ExecuteAdHocCommand:
 
         if server is None:
             raise ServerNotFoundError()
+
+        if server.credential_id is None:
+            raise ServerCredentialRequiredError()
 
         if self._connection_factory is None:
             raise ServerNotFoundError()

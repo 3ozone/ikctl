@@ -1,5 +1,66 @@
 # Requisitos del Módulo Auth
 
+## Introducción
+
+El módulo Auth gestiona la identidad de los usuarios de ikctl: registro, autenticación (local y OAuth2 con GitHub), gestión de sesiones mediante JWT, recuperación de contraseña, verificación de email y autenticación de dos factores (TOTP). Es el módulo transversal del que dependen todos los demás para identificar al usuario autenticado y determinar su rol en el sistema.
+
+## Actores
+
+### Usuario no autenticado
+- Registrarse con nombre, email y contraseña
+- Iniciar sesión (local o GitHub OAuth)
+- Solicitar y completar el reset de contraseña
+- Verificar su email con el token recibido
+
+### Usuario autenticado
+- Consultar y actualizar su perfil
+- Cambiar su contraseña
+- Activar, verificar y desactivar 2FA
+- Cerrar sesión (invalidar refresh token)
+
+### Admin
+- Tiene los mismos permisos que Usuario autenticado
+- Su rol `admin` se incluye en el JWT y lo habilita para operaciones restringidas en otros módulos (ej: servidor local en `servers`)
+
+### Sistema
+- Valida tokens JWT en cada petición protegida
+- Gestiona el blacklist de refresh tokens revocados
+- Bloquea cuentas temporalmente tras intentos fallidos de login
+- Envía emails de verificación y reset de contraseña
+
+## Glosario
+
+- **Access Token**: JWT de corta duración (30 min) que identifica al usuario en cada petición. Stateless, no revocable manualmente
+- **Refresh Token**: JWT de larga duración (7 días) almacenado en DB, usado para obtener nuevos access tokens. Revocable mediante logout
+- **TOTP**: Time-based One-Time Password. Código de 6 dígitos generado por una app de autenticación (Google Authenticator, Authy)
+- **OAuth2**: Protocolo de autorización para login con cuentas externas (GitHub en v1)
+- **Verificación de Email**: Proceso de confirmar que el email pertenece al usuario. Obligatorio para funciones que requieran identidad validada
+- **Reset de Contraseña**: Flujo de recuperación de acceso mediante token enviado por email. Válido 1 hora, un solo uso
+- **Role**: Rol del usuario en el sistema: `user` (default) o `admin`. Se incluye como claim en el JWT
+- **Sesión**: Período activo representado por un par access token + refresh token válidos
+
+## Puntos de Duda / Ambigüedades
+
+### 1. Asignación del rol admin
+**Descripción**: No existe endpoint para asignar el rol `admin` a un usuario. No se especifica cómo se promueve a un usuario a admin (¿manual en DB, script de bootstrap, endpoint privado?).
+
+**Impacto**: Operatividad del sistema, proceso de onboarding inicial.
+
+**Opciones**:
+- Asignación manual en DB (solución mínima para v1)
+- Script de seed/bootstrap al arranque
+- Endpoint privado protegido por ip o secret de entorno
+
+### 2. Interacción OAuth + 2FA
+**Descripción**: No se especifica si un usuario que se registró vía GitHub OAuth puede activar 2FA, ni cómo interacciona el flow OAuth con el step de 2FA si está activado.
+
+**Impacto**: Flujo de login con GitHub OAuth, step adicional de 2FA.
+
+### 3. Derecho al olvido y recursos asociados (GDPR)
+**Descripción**: RNF-24 menciona cumplimiento GDPR y derecho al olvido, pero no se especifica qué ocurre con los servidores, operaciones y credenciales del usuario eliminado — ¿borrado físico o anonimización?
+
+**Impacto**: Integridad referencial entre módulos, política de retención de datos.
+
 ## Requisitos Funcionales
 
 1. **RF-01**: Registro de usuarios con nombre, email y contraseña

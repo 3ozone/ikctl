@@ -62,6 +62,7 @@ class CreateCredential:
             created_at=now,
             updated_at=now,
         )
+        credential.validate()
 
         if self._repo is not None:
             await self._repo.save(credential)
@@ -83,6 +84,7 @@ class CreateCredential:
             name=credential.name,
             credential_type=credential.type.value,
             username=credential.username,
+            has_private_key=credential.private_key is not None,
             created_at=credential.created_at,
             updated_at=credential.updated_at,
         )

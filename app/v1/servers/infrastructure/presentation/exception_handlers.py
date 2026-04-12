@@ -5,6 +5,7 @@ Jerarquía y códigos HTTP:
   - CredentialNotFoundError             → 404 Not Found
   - ServerNotFoundError                 → 404 Not Found
   - GroupNotFoundError                  → 404 Not Found
+  - ServerCredentialRequiredError       → 400 Bad Request
   - CredentialInUseError                → 409 Conflict
 - UseCaseException (catch-all)          → 422 Unprocessable
   - UnauthorizedOperationError          → 403 Forbidden
@@ -29,7 +30,7 @@ from app.v1.servers.domain.exceptions.credential import (
     CredentialNotFoundError,
 )
 from app.v1.servers.domain.exceptions.group import GroupNotFoundError
-from app.v1.servers.domain.exceptions.server import ServerNotFoundError
+from app.v1.servers.domain.exceptions.server import ServerNotFoundError, ServerCredentialRequiredError
 from app.v1.shared.domain.exceptions import DomainException
 from app.v1.shared.infrastructure.exceptions import InfrastructureException
 from app.v1.shared.infrastructure.logger import get_logger
@@ -89,6 +90,23 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=404,
             content={"detail": str(exc)},
+        )
+
+    # ── 400 Bad Request (credencial requerida) ───────────────────────────────
+
+    @app.exception_handler(ServerCredentialRequiredError)
+    async def server_credential_required_handler(
+        request: Request, exc: ServerCredentialRequiredError
+    ) -> JSONResponse:
+        """Convierte ServerCredentialRequiredError a HTTP 400."""
+        logger.warning(
+            "server_credential_required",
+            path=request.url.path,
+            error=str(exc),
+        )
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Este servidor no tiene credencial asignada. Asígnale una antes de realizar esta operación."},
         )
 
     # ── 409 Conflict ─────────────────────────────────────────────────────────

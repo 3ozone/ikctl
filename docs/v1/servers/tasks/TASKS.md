@@ -117,6 +117,7 @@
 - [x] **T-46**: `GET /api/v1/credentials` — listar credenciales paginadas. Query params: `page`, `per_page`. Response 200: lista `CredentialResponse` ✅ GREEN
 - [x] **T-47**: `GET /api/v1/credentials/{id}` — obtener credencial. Response 200: `CredentialResponse` o 404 ✅ GREEN
 - [x] **T-48**: `PUT /api/v1/credentials/{id}` — actualizar credencial. Response 200: `CredentialResponse` o 404/403 ✅ GREEN
+  - **Fix (2026-04-04)**: `UpdateCredentialRequest` añade `@field_validator("private_key", mode="before")` para normalizar `""` → `None` — permite borrar la clave privada enviando string vacío desde el frontend ✅
 - [x] **T-49**: `DELETE /api/v1/credentials/{id}` — eliminar credencial. Response 204 o 404/403/409 (en uso) ✅ GREEN
 
 ### Servers Endpoints

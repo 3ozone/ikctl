@@ -74,6 +74,7 @@ async def create_credential(
         name=result.name,
         credential_type=result.credential_type,
         username=result.username,
+        has_private_key=result.has_private_key,
         created_at=result.created_at,
         updated_at=result.updated_at,
     )
@@ -102,6 +103,7 @@ async def list_credentials(
                 name=item.name,
                 credential_type=item.credential_type,
                 username=item.username,
+                has_private_key=item.has_private_key,
                 created_at=item.created_at,
                 updated_at=item.updated_at,
             )
@@ -134,6 +136,7 @@ async def get_credential(
         name=result.name,
         credential_type=result.credential_type,
         username=result.username,
+        has_private_key=result.has_private_key,
         created_at=result.created_at,
         updated_at=result.updated_at,
     )
@@ -176,6 +179,7 @@ async def update_credential(
         name=result.name,
         credential_type=result.credential_type,
         username=result.username,
+        has_private_key=result.has_private_key,
         created_at=result.created_at,
         updated_at=result.updated_at,
     )

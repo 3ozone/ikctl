@@ -20,3 +20,7 @@ class InvalidServerConfigurationError(DomainException):
     - remote: requiere host y credential_id.
     - local: no puede tener host ni credential_id.
     """
+
+
+class ServerCredentialRequiredError(DomainException):
+    """El servidor no tiene credencial asignada y la operación la requiere."""

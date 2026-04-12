@@ -40,6 +40,7 @@ class ListCredentials:
                 name=c.name,
                 credential_type=c.type.value,
                 username=c.username,
+                has_private_key=c.private_key is not None,
                 created_at=c.created_at,
                 updated_at=c.updated_at,
             )

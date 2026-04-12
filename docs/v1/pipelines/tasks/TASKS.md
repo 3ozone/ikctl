@@ -24,7 +24,7 @@
 - [ ] **T-02**: Value Object `PipelineKitConfig` — inmutable, campos: `kit_id: str`, `sudo: bool | None` (opt — hereda global si None), `debug_level: str | None` (opt). `__eq__` por valor — 3 tests
 - [ ] **T-03**: Value Object `PipelineStatus` (`pending` | `in_progress` | `completed` | `failed` | `partial`) — inmutable, validación de enum, `is_terminal() -> bool` — 5 tests
 - [ ] **T-04**: Entity `Pipeline` — campos: `id`, `user_id`, `name`, `description` (opt), `targets: list[PipelineTarget]`, `kits: list[PipelineKitConfig]`, `values: dict` (por kit_id), `sudo: bool` (global default), `debug_level: str` (global default `none`), `created_at`, `updated_at`. Comandos: `update(name, description, targets, kits, values, sudo, debug_level)`. Queries: `resolved_sudo_for(kit_id) -> bool` (RN-14: kit config prioridad sobre global), `resolved_debug_level_for(kit_id) -> str` (RN-15), `has_local_server(server_ids: list[str]) -> bool`. `__eq__` por `id` — 8 tests
-- [ ] **T-05**: Entity `PipelineExecution` — campos: `id`, `pipeline_id`, `user_id`, `status: PipelineStatus`, `operation_ids: list[str]` (IDs de las ops generadas), `started_at`, `finished_at` (opt), `created_at`. Comandos: `start()` → `in_progress`, `mark_finished(operation_statuses: list[str])` → calcula estado agregado (RN-20): `completed` si TODAS son `completed`; `failed` si TODAS son terminales sin ninguna `completed`; `partial` si al menos una `completed` y al menos una `failed`/`cancelled_unsafe`. `__eq__` por `id` — 10 tests
+- [ ] **T-05**: Entity `PipelineExecution` — campos: `id`, `pipeline_id`, `user_id`, `status: PipelineStatus`, `operation_ids: list[str]` (IDs de las ops generadas), `snapshot: dict` (copia de targets+kits+values en el momento del lanzamiento — RN-21), `started_at`, `finished_at` (opt), `created_at`. Comandos: `start()` → `in_progress`, `mark_finished(operation_statuses: list[str])` → calcula estado agregado (RN-20): `completed` si TODAS son `completed`; `failed` si TODAS son terminales sin ninguna `completed`; `partial` si al menos una `completed` y al menos una `failed`/`cancelled_unsafe`. `__eq__` por `id` — 10 tests
 - [ ] **T-06**: Domain Exceptions en `domain/exceptions/` — `PipelineNotFoundError`, `PipelineExecutionNotFoundError` — tests implícitos en T-04/T-05
 
   **FASE 1 PENDIENTE: ~29 tests**
@@ -50,8 +50,8 @@
 
 - [ ] **T-14**: Query `GetPipeline(user_id, pipeline_id)` → devuelve `PipelineResult` — valida ownership — 2 tests
 - [ ] **T-15**: Query `ListPipelines(user_id, page, per_page)` → devuelve `PipelineListResult` paginado — 2 tests
-- [ ] **T-16**: Query `GetPipelineStatus(user_id, pipeline_id)` → devuelve `PipelineStatusResult` — estado aggregado de la última ejecución + lista de operaciones con `server_id`, `kit_id`, `status` — 3 tests
-- [ ] **T-17**: Query `GetPipelineHistory(user_id, pipeline_id, page, per_page)` → devuelve `PipelineHistoryResult` paginado — lista de ejecuciones pasadas con `started_at`, `finished_at`, `status`, resumen de ops — 2 tests
+- [ ] **T-16**: Query `GetPipelineExecutions(user_id, pipeline_id, page, per_page)` → valida ownership, devuelve `PipelineExecutionListResult` paginado con resumen por ejecución (status, launched_at, finished_at, ops total/completadas/falladas) — 2 tests
+- [ ] **T-17**: Query `GetPipelineExecutionDetail(user_id, pipeline_id, execution_id)` → valida ownership del pipeline, devuelve `PipelineExecutionDetailResult` con snapshot + lista completa de operaciones individuales (server_id, kit_id, status, error) — 3 tests
 
 ### Async Task (Application Layer)
 
@@ -66,7 +66,7 @@
 
 ### DTOs
 
-- [ ] **T-18.1**: Crear DTOs: `PipelineResult`, `PipelineListResult`, `PipelineExecutionResult`, `PipelineStatusResult`, `PipelineHistoryResult` — sin tests directos
+- [ ] **T-18.1**: Crear DTOs: `PipelineResult`, `PipelineListResult`, `PipelineExecutionResult`, `PipelineExecutionListResult`, `PipelineExecutionDetailResult` — sin tests directos
 
   **FASE 2 PENDIENTE: ~39 tests**
 
@@ -92,11 +92,11 @@
 ### Database Migrations (Alembic)
 
 - [ ] **T-24**: Alembic migration: tabla `pipelines` — campos: `id`, `user_id`, `name`, `description`, `targets` (JSON), `kits` (JSON), `values` (JSON), `sudo`, `debug_level`, `created_at`, `updated_at`. Índices: `user_id`
-- [ ] **T-25**: Alembic migration: tabla `pipeline_executions` — campos: `id`, `pipeline_id` (no FK cross-DB, VARCHAR), `user_id`, `status`, `operation_ids` (JSON), `started_at`, `finished_at` (nullable), `created_at`. Índices: `pipeline_id`, `user_id`, `status`
+- [ ] **T-25**: Alembic migration: tabla `pipeline_executions` — campos: `id`, `pipeline_id` (no FK cross-DB, VARCHAR), `user_id`, `status`, `operation_ids` (JSON), `snapshot` (JSON — copia de targets+kits+values del momento del lanzamiento), `started_at`, `finished_at` (nullable), `created_at`. Índices: `pipeline_id`, `user_id`, `status`
 
 ### Presentation
 
-- [ ] **T-26**: Schemas Pydantic en `schemas.py` — `CreatePipelineRequest`, `UpdatePipelineRequest`, `PipelineResponse`, `PipelineExecutionResponse`, `PipelineStatusResponse`, `PipelineHistoryResponse`
+- [ ] **T-26**: Schemas Pydantic en `schemas.py` — `CreatePipelineRequest`, `UpdatePipelineRequest`, `PipelineResponse`, `PipelineExecutionResponse` (incluye `snapshot`), `PipelineExecutionDetailResponse` (con lista de operaciones individuales), `PipelineExecutionListResponse` (lista paginada con resumen)
 - [ ] **T-27**: `deps.py` — dependencias FastAPI: `get_current_user_id(token)`, `get_db_session()`, `get_background_tasks()`, factories de use cases
 - [ ] **T-28**: Exception handlers en `exception_handlers.py` — `PipelineNotFoundError` → 404, `PipelineInProgressError` → 409, `LocalServerInPipelineError` → 422, `PipelineNotLaunchableError` → 422
 
@@ -109,9 +109,9 @@
 - [ ] **T-31**: `GET /api/v1/pipelines/{id}` — obtener pipeline. Response 200: `PipelineResponse` o 404
 - [ ] **T-32**: `PUT /api/v1/pipelines/{id}` — actualizar pipeline. Response 200: `PipelineResponse` o 404/403/409 (en progreso)
 - [ ] **T-33**: `DELETE /api/v1/pipelines/{id}` — eliminar pipeline. Response 204 o 404/403/409 (en progreso)
-- [ ] **T-34**: `POST /api/v1/pipelines/{id}/launch` — lanzar pipeline. Response 201: `PipelineExecutionResponse` con `status: pending`. Rate limiting: 20/hora (RNF-07)
-- [ ] **T-35**: `GET /api/v1/pipelines/{id}/status` — estado actual (última ejecución + ops individuales). Response 200: `PipelineStatusResponse`
-- [ ] **T-36**: `GET /api/v1/pipelines/{id}/history` — historial de ejecuciones paginado. Response 200: `PipelineHistoryResponse`
+- [ ] **T-34**: `POST /api/v1/pipelines/{id}/executions` — lanzar pipeline. Captura `snapshot` de la config actual. Response 201: `PipelineExecutionResponse` con `status: pending`. Rate limiting: 20/hora (RNF-07)
+- [ ] **T-35**: `GET /api/v1/pipelines/{id}/executions` — historial de ejecuciones paginado. Cada entrada: `execution_id`, `launched_at`, `finished_at`, `status`, resumen ops (total/completadas/falladas). Response 200: `PipelineExecutionListResponse`
+- [ ] **T-35.1**: `GET /api/v1/pipelines/{id}/executions/{exec_id}` — detalle de una ejecución concreta: `status`, `snapshot`, `started_at`, `finished_at` + lista de operaciones individuales con `server_id`, `kit_id`, `status`, `error`. Response 200: `PipelineExecutionDetailResponse` o 404
 
   **FASE 4 PENDIENTE: 8 endpoints**
 
@@ -119,7 +119,7 @@
 
 ### Tests de Integración FastAPI
 
-- [ ] **T-37**: Tests de presentación pipelines — flujos: crear OK (201), lanzar OK (201 + pending execution), actualizar con ejecución activa → 409, servidor local en targets → 422, kit no sincronizado → 422 — 5 tests
+- [ ] **T-37**: Tests de presentación pipelines — flujos: crear OK (201), `POST /executions` lanza OK (201 + pending execution + snapshot guardado), actualizar con ejecución activa → 409, servidor local en targets → 422, kit no sincronizado → 422, `GET /executions` lista paginada, `GET /executions/{exec_id}` detalle con ops — 7 tests
 - [ ] **T-38**: Tests del flujo `_ExecutePipelineOperations` — mock de `OperationLauncher` y `OperationRepository`: N×M operations lanzadas, estado `completed` propagado correctamente, estado `partial` cuando algunas fallan (RN-20), timeout global — 6 tests
 - [ ] **T-39**: Tests de estado agregado `mark_finished()` — todas completed → `completed`, todas failed → `failed`, mixto → `partial` (RN-20) — 4 tests (probados en T-05, reforzados aquí)
 

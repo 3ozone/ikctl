@@ -317,7 +317,10 @@ async def login(
 
     # Usar jwt_provider (inyectado con el secret del .env) en lugar de
     # CreateTokens que tiene el secret key hardcodeado
-    access_token_obj = jwt_provider.create_access_token(user_id=user.id)
+    access_token_obj = jwt_provider.create_access_token(
+        user_id=user.id,
+        additional_claims={"role": user.role},
+    )
     refresh_token_value = str(uuid4())
 
     now = datetime.now(timezone.utc)
@@ -485,7 +488,14 @@ async def login_2fa(
             detail="Código 2FA incorrecto.",
         )
 
-    access_token_obj = jwt_provider.create_access_token(user_id=user_id)
+    user = await user_repository.find_by_id(user_id)
+    if user is None:
+        raise ResourceNotFoundError(f"Usuario con ID {user_id} no encontrado.")
+
+    access_token_obj = jwt_provider.create_access_token(
+        user_id=user_id,
+        additional_claims={"role": user.role},
+    )
     refresh_token_obj = jwt_provider.create_refresh_token(user_id=user_id)
 
     now = datetime.now(timezone.utc)

@@ -1,6 +1,6 @@
 """Modelos SQLAlchemy para persistencia."""
 from datetime import datetime
-from sqlalchemy import String, DateTime, Boolean, Index
+from sqlalchemy import String, DateTime, Boolean, Enum, Index
 from sqlalchemy.orm import Mapped, mapped_column, declarative_base
 
 Base = declarative_base()
@@ -20,6 +20,8 @@ class UserModel(Base):
         Boolean, default=False, nullable=False)
     is_email_verified: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False)
+    role: Mapped[str] = mapped_column(
+        Enum("user", "admin", name="user_role"), nullable=False, default="user")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 

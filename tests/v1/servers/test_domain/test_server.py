@@ -57,25 +57,25 @@ class TestServerRemote:
                 updated_at=UPDATED_AT,
             )
 
-    def test_remote_without_credential_id_raises_error(self):
-        """remote sin credential_id lanza InvalidServerConfigurationError."""
-        with pytest.raises(InvalidServerConfigurationError):
-            Server(
-                id="srv-3",
-                user_id="user-1",
-                name="Sin credencial",
-                type=ServerType("remote"),
-                status=ServerStatus("active"),
-                host="192.168.1.10",
-                port=22,
-                credential_id=None,
-                description=None,
-                os_id=None,
-                os_version=None,
-                os_name=None,
-                created_at=CREATED_AT,
-                updated_at=UPDATED_AT,
-            )
+    def test_remote_without_credential_id_is_valid(self):
+        """remote sin credential_id es válido — la credencial es opcional al registrar."""
+        server = Server(
+            id="srv-3",
+            user_id="user-1",
+            name="Sin credencial",
+            type=ServerType("remote"),
+            status=ServerStatus("active"),
+            host="192.168.1.10",
+            port=22,
+            credential_id=None,
+            description=None,
+            os_id=None,
+            os_version=None,
+            os_name=None,
+            created_at=CREATED_AT,
+            updated_at=UPDATED_AT,
+        )
+        assert server.credential_id is None
 
 
 class TestServerLocal:

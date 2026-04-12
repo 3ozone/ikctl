@@ -1,5 +1,59 @@
 # Requisitos del Módulo Servers
 
+## Introducción
+
+El módulo Servers gestiona los servidores registrados por los usuarios (remotos vía SSH y locales), las credenciales SSH reutilizables y los grupos de servidores. Actúa como capa de abstracción de conexión para que los módulos `operations` y `kits` sean agnósticos del tipo de servidor subyacente. Cualquier recurso gestionado por este módulo (servidor, credencial, grupo) pertenece exclusivamente a su propietario.
+
+## Actores
+
+### Usuario
+- Registrar, editar y eliminar sus propios servidores remotos
+- Gestionar sus propias credenciales SSH y Git
+- Crear, editar y eliminar sus propios grupos de servidores
+- Verificar conectividad y ejecutar comandos ad-hoc en sus servidores
+- Solo puede ver y operar sobre sus propios recursos
+
+### Admin
+- Tiene los mismos permisos que Usuario sobre sus propios recursos
+- Solo los usuarios con rol `admin` pueden registrar y usar el servidor `local`
+
+### Sistema
+- Selecciona el adaptador de conexión correcto (`SSHConnectionAdapter` o `LocalConnectionAdapter`) según el tipo de servidor
+- Valida que solo exista un servidor `local` por usuario
+- Previene eliminación de servidores con operaciones activas y credenciales referenciadas por servidores activos
+
+## Glosario
+
+- **Servidor**: Máquina registrada sobre la que se ejecutan operaciones. Puede ser `remote` o `local`
+- **Servidor Remoto**: Servidor externo accedido vía SSH usando `host`, `port` y credencial
+- **Servidor Local**: La máquina donde corre la API. No requiere credenciales ni `host`. Solo accesible para admins
+- **Credencial**: Objeto reutilizable con datos de autenticación SSH o Git. Compartida entre múltiples recursos
+- **Adaptador de Conexión**: Implementación concreta que abstrae cómo se conecta al servidor (`SSHConnectionAdapter` o `LocalConnectionAdapter`)
+- **Grupo de Servidores**: Agrupación lógica de servidores usable como target en pipelines
+- **Propietario**: Usuario que creó el recurso y tiene derechos exclusivos sobre él
+- **Health Check**: Verificación de conectividad que determina si un servidor está `online` u `offline` e intenta autodetectar el SO
+
+## Puntos de Duda / Ambigüedades
+
+### 1. Visibilidad de recursos entre admin y usuarios
+**Descripción**: RNF-16 indica que solo admins pueden registrar y usar el servidor `local`, pero no se especifica si un admin puede ver o gestionar los servidores y credenciales de otros usuarios.
+
+**Impacto**: Queries de listado, middleware de autorización, RBAC en use cases.
+
+**Opciones**:
+- Admin solo tiene privilegios para el servidor `local` propio — para todo lo demás es un usuario normal
+- Admin tiene visibilidad total sobre recursos de todos los usuarios
+
+### 2. Límite de servidor local: por usuario vs por instancia
+**Descripción**: RN-07 dice "solo puede existir un servidor `local` por usuario". No queda claro si el límite debería ser global (una sola instancia de servidor local en toda la plataforma) o por usuario.
+
+**Impacto**: Validación en RF-34 y query de unicidad en el repositorio.
+
+### 3. Eliminación de grupo con pipelines referenciados
+**Descripción**: RN-19 bloquea la eliminación si hay pipelines en `in_progress`. No se especifica qué ocurre con pipelines finalizados que referencian el grupo — si el grupo puede eliminarse libremente o si esas referencias históricas se deben preservar.
+
+**Impacto**: Lógica de borrado y consistencia de datos históricos en el módulo operations.
+
 ## Credenciales SSH
 
 Las credenciales son objetos independientes reutilizables. Un servidor o kit referencia una credencial por `credential_id`. Múltiples recursos pueden compartir la misma credencial. Actualizar una credencial afecta automáticamente a todos los recursos que la usan.

@@ -44,6 +44,7 @@ class SQLAlchemyUserRepository(UserRepository):
                 totp_secret=user.totp_secret,
                 is_2fa_enabled=user.is_2fa_enabled,
                 is_email_verified=user.is_email_verified,
+                role=user.role,
                 created_at=user.created_at,
                 updated_at=user.updated_at
             )
@@ -141,6 +142,7 @@ class SQLAlchemyUserRepository(UserRepository):
             user_model.totp_secret = user.totp_secret
             user_model.is_2fa_enabled = user.is_2fa_enabled
             user_model.is_email_verified = user.is_email_verified
+            user_model.role = user.role
             user_model.updated_at = user.updated_at
 
             await self._session.commit()
@@ -207,6 +209,7 @@ class SQLAlchemyUserRepository(UserRepository):
             totp_secret=model.totp_secret,
             is_2fa_enabled=model.is_2fa_enabled,
             is_email_verified=model.is_email_verified,
+            role=model.role,
             created_at=model.created_at,
             updated_at=model.updated_at
         )

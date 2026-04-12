@@ -5,7 +5,7 @@ No contienen lógica de negocio — delegan a use cases.
 """
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -35,6 +35,14 @@ class UpdateCredentialRequest(BaseModel):
     password: str | None = Field(None, max_length=1024)
     private_key: str | None = Field(None)
 
+    @field_validator("private_key", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, v: str | None) -> str | None:
+        """Normaliza cadena vacía a None para borrar la clave privada existente."""
+        if v == "":
+            return None
+        return v
+
 
 # ---------------------------------------------------------------------------
 # CREDENTIAL — Response
@@ -49,6 +57,7 @@ class CredentialResponse(BaseModel):
     name: str
     credential_type: str
     username: str | None
+    has_private_key: bool
     created_at: datetime
     updated_at: datetime
 
@@ -76,7 +85,7 @@ class RegisterServerRequest(BaseModel):
     host: str = Field(..., min_length=1, max_length=255,
                       examples=["192.168.1.10"])
     port: int = Field(22, ge=1, le=65535, examples=[22])
-    credential_id: str = Field(..., examples=["cred-uuid"])
+    credential_id: str | None = Field(None, examples=["cred-uuid"])
     description: str | None = Field(None, max_length=1024)
 
 

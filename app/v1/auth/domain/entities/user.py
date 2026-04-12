@@ -22,6 +22,7 @@ class User:
     totp_secret: str | None = None
     is_2fa_enabled: bool = False
     is_email_verified: bool = False
+    role: str = "user"
 
     def __post_init__(self) -> None:
         """Valida que los datos de User sean válidos."""
@@ -52,6 +53,9 @@ class User:
 
         if not isinstance(self.is_email_verified, bool):
             raise InvalidUserError("is_email_verified debe ser un booleano")
+
+        if self.role not in ("user", "admin"):
+            raise InvalidUserError("role debe ser 'user' o 'admin'")
 
     def __eq__(self, other: object) -> bool:
         """Igualdad por identidad: dos User son iguales si tienen el mismo id."""
@@ -132,3 +136,11 @@ class User:
             True si password_hash es el sentinel OAUTH_NO_PASSWORD.
         """
         return self.password_hash == "OAUTH_NO_PASSWORD"
+
+    def is_admin(self) -> bool:
+        """Indica si el usuario tiene rol de administrador.
+
+        Returns:
+            True si role es 'admin', False en caso contrario.
+        """
+        return self.role == "admin"

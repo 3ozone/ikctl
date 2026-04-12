@@ -40,8 +40,7 @@ class Server:
         if self.type.value == "remote":
             if not self.host:
                 raise InvalidServerConfigurationError()
-            if not self.credential_id:
-                raise InvalidServerConfigurationError()
+            # credential_id es opcional al registrar; se valida al usar (SSH/health check)
 
         elif self.type.value == "local":
             if self.host:

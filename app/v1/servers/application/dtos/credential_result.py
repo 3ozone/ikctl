@@ -12,6 +12,7 @@ class CredentialResult:
     """Resultado de crear o actualizar una credencial.
 
     No incluye password ni private_key por seguridad.
+    has_private_key indica si existe una clave privada guardada.
     """
 
     credential_id: str
@@ -19,5 +20,6 @@ class CredentialResult:
     name: str
     credential_type: str
     username: str | None
+    has_private_key: bool
     created_at: datetime
     updated_at: datetime

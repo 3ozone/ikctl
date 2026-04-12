@@ -1,5 +1,53 @@
 # Requisitos del Módulo Operations
 
+## Introducción
+
+El módulo Operations gestiona la ejecución de kits en servidores individuales. Una operación es la unidad mínima de ejecución: toma un kit, un servidor y unos valores, descarga los ficheros del kit en runtime, los transfiere al servidor y ejecuta los scripts en orden. Soporta snapshot pre-ejecución para restauración, caché de ficheros para evitar retransferencias innecesarias y distintos niveles de captura de output. Es el motor de ejecución sobre el que se construye el módulo Pipelines.
+
+## Actores
+
+### Usuario
+- Lanzar operaciones sobre sus propios servidores con kits de sus repositorios
+- Consultar el estado y output de sus propias operaciones
+- Cancelar operaciones propias en estado `pending` o `in_progress`
+- Restaurar backup pre-operación en operaciones `failed` o `cancelled_unsafe`
+- Reintentar operaciones propias fallidas
+- Solo puede ver y operar sobre sus propias operaciones
+
+### Sistema
+- Ejecuta operaciones de forma asíncrona en background
+- Gestiona el ciclo de vida completo: snapshot → descarga → renderizado → transferencia con caché → ejecución → limpieza
+- Aplica y gestiona los timeouts configurados
+- Actualiza el output parcial en DB durante la ejecución para permitir polling
+- Invalida el caché de ficheros si detecta que los archivos ya no existen en el servidor
+
+## Glosario
+
+- **Operación**: Unidad de ejecución que aplica un kit a un servidor concreto. Tiene un ciclo de vida propio con estados
+- **Snapshot / Backup**: Copia in-place de ficheros del servidor creada antes de ejecutar la operación si el kit declara `backup[]`. Permite restauración vía RF-18
+- **Caché de ficheros**: Registro en DB de los hashes SHA-256 de los ficheros transferidos a cada servidor. Evita retransferencias innecesarias cuando el contenido no ha cambiado
+- **debug_level**: Nivel de captura de output SSH de la operación. `none` (sin output), `errors` (solo stderr), `full` (stdout + stderr)
+- **cancelled_unsafe**: Estado terminal que indica que la operación fue cancelada mientras estaba en ejecución. El servidor puede quedar en estado parcial o inconsistente
+- **Reintento**: Nueva operación creada con los mismos parámetros que una operación fallida, conservando la original en el historial
+- **Restauración**: Proceso de sobrescribir los ficheros modificados del servidor con sus copias `.bak.ikctl` para volver al estado previo a la operación
+
+## Puntos de Duda / Ambigüedades
+
+### 1. Cancelación de operaciones in_progress en el servidor local
+**Descripción**: Cuando una operación en `in_progress` se cancela (`cancelled_unsafe`), se corta la conexión SSH. Pero el servidor `local` no usa SSH — no está claro cómo se cancela un proceso en ejecución local y si `cancelled_unsafe` tiene el mismo significado.
+
+**Impacto**: Comportamiento del `LocalConnectionAdapter` al cancelar, semántica del estado `cancelled_unsafe` para operaciones locales.
+
+### 2. Visibilidad del output parcial durante in_progress
+**Descripción**: RF-15 indica que el output se acumula en DB y el usuario puede hacer polling. No se especifica si hay límite de tamaño del output almacenado ni qué ocurre cuando ese límite se supera.
+
+**Impacto**: Esquema de DB, rendimiento de escrituras frecuentes, experiencia de usuario en operaciones largas con `debug_level: full`.
+
+### 3. Limpieza del fichero .bak.ikctl
+**Descripción**: Los ficheros `.bak.ikctl` no se limpian automáticamente. No se especifica si el sistema debe ofrecer un mecanismo explícito para eliminarlos, o si simplemente se sobreescriben en la siguiente operación con backup sobre el mismo fichero.
+
+**Impacto**: Gestión de espacio en disco del servidor remoto, UX de restauración.
+
 ## Ciclo de Vida de una Operación
 
 ```

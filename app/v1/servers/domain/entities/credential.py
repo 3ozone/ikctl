@@ -25,8 +25,12 @@ class Credential:
     created_at: datetime
     updated_at: datetime
 
-    def __post_init__(self) -> None:
+    def validate(self) -> None:
         """Valida la configuración de la credencial según su tipo (RN-18).
+
+        Llamar explícitamente al crear una credencial nueva (use case de creación).
+        No se llama al reconstruir desde persistencia para evitar fallos en datos
+        existentes que aún no tengan todos los campos opcionales.
 
         Raises:
             InvalidCredentialConfigurationError: Si los campos requeridos

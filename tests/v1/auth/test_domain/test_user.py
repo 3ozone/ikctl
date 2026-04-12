@@ -303,3 +303,72 @@ class TestUser:
         )
 
         assert user.has_oauth_password() is False
+
+    # --- Role ---
+
+    def test_user_default_role_is_user(self):
+        """Test 19: User se crea con role='user' por defecto."""
+        user = User(
+            id="u-1",
+            name="John Doe",
+            email=Email("john@example.com"),
+            password_hash="hash",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+        assert user.role == "user"
+
+    def test_user_creation_with_admin_role(self):
+        """Test 20: User se crea con role='admin' explícito."""
+        user = User(
+            id="u-1",
+            name="John Doe",
+            email=Email("john@example.com"),
+            password_hash="hash",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            role="admin",
+        )
+
+        assert user.role == "admin"
+
+    def test_user_invalid_role_raises_error(self):
+        """Test 21: User con role inválido lanza InvalidUserError."""
+        with pytest.raises(InvalidUserError):
+            User(
+                id="u-1",
+                name="John Doe",
+                email=Email("john@example.com"),
+                password_hash="hash",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                role="superuser",
+            )
+
+    def test_is_admin_returns_true_for_admin_role(self):
+        """Test 22: is_admin() devuelve True cuando role es 'admin'."""
+        user = User(
+            id="u-1",
+            name="John Doe",
+            email=Email("john@example.com"),
+            password_hash="hash",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            role="admin",
+        )
+
+        assert user.is_admin() is True
+
+    def test_is_admin_returns_false_for_user_role(self):
+        """Test 23: is_admin() devuelve False cuando role es 'user'."""
+        user = User(
+            id="u-1",
+            name="John Doe",
+            email=Email("john@example.com"),
+            password_hash="hash",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+        assert user.is_admin() is False
