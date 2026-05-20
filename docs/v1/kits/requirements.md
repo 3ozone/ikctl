@@ -231,26 +231,18 @@ CREATE TABLE kits (
 
 ## Requisitos Funcionales — Repositories
 
-1. **RF-01**: Registrar un repositorio con `url`, `ref` (branch o tag) y opcionalmente `credential_id`. Se crea con `sync_status: never_synced`. No se hace ninguna llamada a Git en este paso
+1. **RF-01**: Registrar un repositorio con `url`, `ref` (branch o tag) y opcionalmente `credential_id`. Se crea con `sync_status: never_synced`. No se hace ninguna llamada a Git en este paso. Publica el evento `RepositoryRegistered` tras persistir
 2. **RF-02**: Listar repositorios del usuario autenticado con paginación. Solo devuelve repositorios no eliminados. Incluye `sync_status` en la respuesta
 3. **RF-03**: Obtener detalle de un repositorio por `id`, incluyendo todos los metadatos y `sync_status`. Solo repositorios propios
 4. **RF-04**: Actualizar un repositorio (`url`, `ref`, `credential_id`). Si se cambia `ref` o `url`, el `sync_status` vuelve a `never_synced` automáticamente. Solo repositorios propios
-5. **RF-05**: Eliminar un repositorio. Solo si ningún kit del repo está referenciado en pipelines ni operaciones en curso (RN-30). Si hay referencias → 409. Si no hay referencias → borrado físico del repo y todos sus kits de DB
-6. **RF-06**: Sincronizar un repositorio manualmente (`POST /repositories/{id}/sync`). Reconcilia kits en DB con el índice del `ikctl.yaml` raíz. Si el `ikctl.yaml` raíz no existe → `sync_error`. Si falla el clone → `sync_error`. Devuelve 200 en ambos casos — el error es de negocio, no de infraestructura
+5. **RF-05**: Eliminar un repositorio. Solo si ningún kit del repo está referenciado en pipelines ni operaciones en curso (RN-30). Si hay referencias → 409. Si no hay referencias → borrado físico del repo y todos sus kits de DB. Publica el evento `RepositoryDeleted` tras el borrado físico
+6. **RF-06**: Sincronizar un repositorio manualmente (`POST /repositories/{id}/sync`). Reconcilia kits en DB con el índice del `ikctl.yaml` raíz. Si el `ikctl.yaml` raíz no existe → `sync_error`. Si falla el clone → `sync_error`. Devuelve 200 en ambos casos — el error es de negocio, no de infraestructura. En caso de sync exitoso: publica `RepositorySynced` (con contadores de kits creados/actualizados/eliminados) y `KitDiscovered` por cada kit nuevo creado en esa sincronización
 
 ## Requisitos Funcionales — Kits
 
 7. **RF-10**: Listar kits del usuario autenticado con paginación y filtrado por `tags` y `repository_id`. Solo devuelve kits no eliminados (`is_deleted: false`). Incluye `sync_status` en la respuesta
 8. **RF-11**: Obtener detalle de un kit por `id`, incluyendo todos los metadatos y `sync_status`. Solo kits propios
 9. **RF-35**: Los kits no se registran manualmente — son descubiertos y gestionados automáticamente por el sync del repositorio (RF-06). No existe endpoint `POST /kits`
-
-## Reglas de Negocio
-
-- **RN-01**: Toda operación sobre un recurso (`Repository`, `Kit`) debe validar que `user_id` del recurso coincide con el usuario autenticado. Cualquier acceso a un recurso ajeno devuelve el mismo error que si no existiera (evitar enumeración)
-- **RN-21**: Todos los ficheros declarados en `files.pipeline[]` del `ikctl.yaml` deben estar también declarados en `files.uploads[]`. Si algún pipeline file no está en uploads → `InvalidManifestError` al parsear el manifiesto
-- **RN-23**: El `credential_id` asociado a un repositorio, si se proporciona, debe pertenecer a una credencial de tipo `git_https` (Personal Access Token) o `git_ssh` (clave privada). Cualquier otro tipo → `InvalidGitCredentialTypeError`
-- **RN-29**: Si durante una sincronización un kit pasa a `is_deleted: true` (fue eliminado del índice raíz) y ese kit tiene referencias activas en pipelines u operaciones en curso, se debe generar una notificación de advertencia. La sincronización no falla por esto — el kit queda marcado como eliminado y las referencias en pipelines quedan inválidas hasta que se actualicen
-- **RN-30**: No se puede eliminar un repositorio si alguno de sus kits está referenciado en pipelines u operaciones activas. Si hay referencias → `RepositoryInUseError` (409). El borrado es físico (repo + todos sus kits en DB) solo cuando no hay referencias
 
 ## Requisitos No Funcionales
 
@@ -260,8 +252,6 @@ CREATE TABLE kits (
 - **RNF-12**: Timeout de git clone (shallow): 30 segundos. Si se supera → `sync_error`
 - **RNF-14**: El clone de Git siempre es shallow (`depth=1`) — nunca se clona el historial completo. Minimiza tiempo de descarga y uso de disco
 - **RNF-15**: El directorio temporal creado para el shallow clone debe eliminarse **siempre** al finalizar la operación, tanto en caso de éxito como de error (patrón `try/finally`). Nunca dejar ficheros temporales en disco
-- **RNF-14**: Shallow clone obligatorio (`depth=1`). Solo se descarga el commit apuntado por `ref`, nunca el historial completo
-- **RNF-15**: Directorio temporal del clone se elimina siempre tras su uso, tanto en éxito como en error
 - **RNF-16**: Sync periódico automático cada `KIT_SYNC_INTERVAL_MINUTES` minutos (default: 30). Configurable en `.env`
 
 ## Features Futuras (v2)
@@ -285,3 +275,5 @@ CREATE TABLE kits (
 - **RN-29**: Si el sync detecta que un kit pasa a `is_deleted: true` y ese kit está referenciado en pipelines → se genera una notificación visible en el frontend listando los pipelines afectados
 - **RN-30**: Un repositorio solo puede eliminarse si ninguno de sus kits está referenciado en pipelines (activos o no) ni hay operaciones en curso usando sus kits. En caso contrario → 409 listando las referencias
 - **RN-31**: Si un repositorio no puede ser clonado en tiempo de ejecución de una operación (repo eliminado, credenciales inválidas, timeout) → la operación se cancela con error controlado antes de tocar el servidor remoto
+- **RN-32**: Los eventos de dominio (`RepositoryRegistered`, `RepositoryDeleted`, `RepositorySynced`, `KitDiscovered`) se publican siempre **después** de completar la persistencia. Si la persistencia falla, no se publica ningún evento
+- **RN-33**: Durante una sincronización exitosa, `RepositorySynced` se publica exactamente una vez al finalizar el `SyncRepository`; `KitDiscovered` se publica una vez por cada kit nuevo descubierto en esa misma sincronización. Un sync que no crea kits nuevos publica `RepositorySynced` pero ningún `KitDiscovered`. En caso de `sync_error` no se publica ningún evento

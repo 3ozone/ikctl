@@ -11,7 +11,8 @@ app/v1/kits/
 ├── domain/
 │   ├── entities/          # Repository, Kit
 │   ├── value_objects/     # SyncStatus, KitManifest, RepositoryIndex
-│   └── exceptions/        # RepositoryNotFoundError, KitNotFoundError, InvalidManifestError, MissingRootManifestError
+│   ├── exceptions/        # RepositoryNotFoundError, KitNotFoundError, InvalidManifestError, MissingRootManifestError
+│   └── events/            # RepositoryRegistered, RepositoryDeleted, RepositorySynced, KitDiscovered
 ├── application/
 │   ├── commands/          # RegisterRepository, UpdateRepository, DeleteRepository, SyncRepository
 │   ├── queries/           # GetRepository, ListRepositories, GetKit, ListKits
@@ -141,6 +142,42 @@ domain/exceptions/kit.py:
     KitNotFoundError           → Kit no existe o no pertenece al usuario
     InvalidManifestError       → ikctl.yaml del kit inválido (RN-21 u otros)
     MissingRootManifestError   → ikctl.yaml raíz no existe o no declara kits
+```
+
+---
+
+### Domain Events
+
+Todos los eventos heredan de `DomainEvent` (`app.v1.shared.domain.events`). Se publican en el use case **después** de `await repository.save/update/delete()`, nunca antes.
+
+| Evento | Aggregate | Publicado en | Payload |
+|--------|-----------|-------------|------|
+| `RepositoryRegistered` | `Repository` | `RegisterRepository` tras `save()` | `repository_id, user_id, url, ref` |
+| `RepositoryDeleted` | `Repository` | `DeleteRepository` tras `delete()` | `repository_id, user_id` |
+| `RepositorySynced` | `Repository` | `SyncRepository` tras `mark_synced()` + `update()` | `repository_id, user_id, commit_sha, kits_created, kits_updated, kits_deleted` |
+| `KitDiscovered` | `Kit` | `SyncRepository` por cada kit nuevo creado | `kit_id, repository_id, user_id, path_in_repo, name` |
+
+```python
+# Ejemplo — SyncRepository publica ambos tipos de evento
+await self._repository_repo.update(repo)  # persiste primero
+await self._event_bus.publish(RepositorySynced(
+    repository_id=repo.id,
+    user_id=repo.user_id,
+    commit_sha=commit_sha,
+    kits_created=kits_created,
+    kits_updated=kits_updated,
+    kits_deleted=kits_deleted,
+    correlation_id=correlation_id,
+))
+for kit in newly_created_kits:
+    await self._event_bus.publish(KitDiscovered(
+        kit_id=kit.id,
+        repository_id=repo.id,
+        user_id=repo.user_id,
+        path_in_repo=kit.path_in_repo,
+        name=kit.name or "",
+        correlation_id=correlation_id,
+    ))
 ```
 
 ---

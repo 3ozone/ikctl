@@ -4,7 +4,7 @@
 
 El módulo `servers` gestiona tres agregados del dominio: **Credential**, **Server** y **Group**. Sigue la misma Clean Architecture del módulo `auth` con capas domain → application → infrastructure.
 
-```
+```bash
 app/v1/servers/
 ├── domain/          # Entities, Value Objects, Events, Exceptions
 ├── application/     # Use Cases (CQRS), DTOs, Interfaces (Ports)
