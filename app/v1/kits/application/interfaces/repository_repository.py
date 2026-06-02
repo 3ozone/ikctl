@@ -102,3 +102,19 @@ class RepositoryRepository(ABC):
         Raises:
             InfrastructureException: Error de consulta
         """
+
+    @abstractmethod
+    async def find_all_active(self) -> list[Repository]:
+        """
+        Devuelve todos los repositorios activos (is_deleted=False) de todos
+        los usuarios, ordenados por created_at.
+
+        Usado por el scheduler periódico (PeriodicSyncRepositories) para
+        sincronizar todos los repositorios registrados en el sistema.
+
+        Returns:
+            Lista de Repository activos de todos los usuarios
+
+        Raises:
+            InfrastructureException: Error de consulta
+        """

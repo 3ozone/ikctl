@@ -9,6 +9,7 @@ El módulo Kits gestiona repositorios Git que contienen kits de instalación y c
 ## Actores
 
 ### Usuario
+
 - Registrar y eliminar repositorios Git propios
 - Disparar sincronizaciones manuales sobre sus repositorios
 - Consultar y filtrar kits descubiertos en sus repositorios
@@ -16,6 +17,7 @@ El módulo Kits gestiona repositorios Git que contienen kits de instalación y c
 - Solo puede ver y operar sobre sus propios repositorios y kits
 
 ### Sistema
+
 - Sincroniza repositorios automáticamente cada 30 minutos (configurable)
 - Reconcilia el índice de kits en DB con el estado de Git tras cada sync
 - Realiza shallow clones en runtime para obtener los ficheros del kit al ejecutar una operación
@@ -36,20 +38,24 @@ El módulo Kits gestiona repositorios Git que contienen kits de instalación y c
 ## Puntos de Duda / Ambigüedades
 
 ### 1. Repositorios compartidos entre usuarios
+
 **Descripción**: No se especifica si múltiples usuarios pueden registrar el mismo repositorio Git o si cada uno debe registrarlo por separado con su propia credencial.
 
 **Impacto**: Unicidad en DB, validación de ownership, comportamiento del sync cuando el mismo repo existe para varios usuarios.
 
 **Opciones**:
+
 - Cada usuario registra su propia copia del repositorio (modelo actual implícito)
 - Repositorios compartidos con control de acceso por usuario
 
 ### 2. Credencial expirada o eliminada en un repositorio
+
 **Descripción**: No se especifica qué ocurre cuando la credencial asociada a un repositorio se elimina o expira. ¿El siguiente sync falla con `sync_error` y notifica al usuario, o falla silenciosamente?
 
 **Impacto**: UX de notificación de errores, resiliencia del sync automático, consistencia entre módulo `servers` (credenciales) y `kits`.
 
 ### 3. Visibilidad de kits con is_deleted: true
+
 **Descripción**: Cuando un kit pasa a `is_deleted: true` tras un sync, no se especifica si debe seguir siendo visible en el listado con algún indicador visual, o si desaparece completamente de los resultados.
 
 **Impacto**: UX, gestión de referencias en pipelines, comportamiento de RF-10.

@@ -1,6 +1,6 @@
 # Tareas del Módulo Pipelines v1.0.0
 
-**Estado:** 0 tests — ⏳ PENDIENTE DE IMPLEMENTACIÓN
+**Estado:** 69 tests GREEN — Fases 0–1 completadas ✅
 
 > Módulo que gestiona pipelines de configuración — ejecuciones de N kits × M servidores (o grupos)
 > en paralelo. Un pipeline genera automáticamente N×M operaciones individuales y agrega su estado.
@@ -8,26 +8,24 @@
 
 ## Fase 0: Estructura Clean Architecture
 
-**DEBE EJECUTARSE PRIMERO** — El módulo `app/v1/pipelines/` no existe aún
+**✅ COMPLETADA**
 
-- [ ] **T-00.1**: Crear `app/v1/pipelines/` con `__init__.py` y estructura `domain/` (`entities/`, `value_objects/`, `exceptions/`) con sus `__init__.py`
-- [ ] **T-00.2**: Crear `application/` con subcarpetas `commands/`, `queries/`, `tasks/`, `dtos/`, `interfaces/` y sus `__init__.py`
-- [ ] **T-00.3**: Crear `application/exceptions.py` (UseCaseException, PipelineInProgressError, LocalServerInPipelineError, PipelineNotLaunchableError)
-- [ ] **T-00.4**: Crear `infrastructure/` con subcarpetas `persistence/`, `repositories/`, `presentation/` y sus `__init__.py`
-- [ ] **T-00.5**: Crear tests directory `tests/v1/pipelines/` con subcarpetas `test_domain/`, `test_use_cases/`, `test_infrastructure/`, `test_presentation/` y sus `__init__.py`
-
-  **FASE 0 PENDIENTE: 5 tareas — bloquea todo el módulo**
+- [x] **T-00.1**: Crear `app/v1/pipelines/` con `__init__.py` y estructura `domain/` (`entities/`, `value_objects/`, `exceptions/`) con sus `__init__.py`
+- [x] **T-00.2**: Crear `application/` con subcarpetas `commands/`, `queries/`, `tasks/`, `dtos/`, `interfaces/` y sus `__init__.py`
+- [x] **T-00.3**: Crear `application/exceptions.py` (UseCaseException, PipelineInProgressError, LocalServerInPipelineError, PipelineNotLaunchableError)
+- [x] **T-00.4**: Crear `infrastructure/` con subcarpetas `persistence/`, `repositories/`, `adapters/`, `presentation/` y sus `__init__.py`
+- [x] **T-00.5**: Crear tests directory `tests/v1/pipelines/` con subcarpetas `test_domain/`, `test_use_cases/`, `test_infrastructure/`, `test_presentation/` y sus `__init__.py`
 
 ## Fase 1: Entidades y Value Objects (Domain Layer)
 
-- [ ] **T-01**: Value Object `PipelineTarget` — inmutable, campos: `server_id: str`. Validación: `server_id` no vacío. `__eq__` por valor — 3 tests
-- [ ] **T-02**: Value Object `PipelineKitConfig` — inmutable, campos: `kit_id: str`, `sudo: bool | None` (opt — hereda global si None), `debug_level: str | None` (opt). `__eq__` por valor — 3 tests
-- [ ] **T-03**: Value Object `PipelineStatus` (`pending` | `in_progress` | `completed` | `failed` | `partial`) — inmutable, validación de enum, `is_terminal() -> bool` — 5 tests
-- [ ] **T-04**: Entity `Pipeline` — campos: `id`, `user_id`, `name`, `description` (opt), `targets: list[PipelineTarget]`, `kits: list[PipelineKitConfig]`, `values: dict` (por kit_id), `sudo: bool` (global default), `debug_level: str` (global default `none`), `created_at`, `updated_at`. Comandos: `update(name, description, targets, kits, values, sudo, debug_level)`. Queries: `resolved_sudo_for(kit_id) -> bool` (RN-14: kit config prioridad sobre global), `resolved_debug_level_for(kit_id) -> str` (RN-15), `has_local_server(server_ids: list[str]) -> bool`. `__eq__` por `id` — 8 tests
-- [ ] **T-05**: Entity `PipelineExecution` — campos: `id`, `pipeline_id`, `user_id`, `status: PipelineStatus`, `operation_ids: list[str]` (IDs de las ops generadas), `snapshot: dict` (copia de targets+kits+values en el momento del lanzamiento — RN-21), `started_at`, `finished_at` (opt), `created_at`. Comandos: `start()` → `in_progress`, `mark_finished(operation_statuses: list[str])` → calcula estado agregado (RN-20): `completed` si TODAS son `completed`; `failed` si TODAS son terminales sin ninguna `completed`; `partial` si al menos una `completed` y al menos una `failed`/`cancelled_unsafe`. `__eq__` por `id` — 10 tests
-- [ ] **T-06**: Domain Exceptions en `domain/exceptions/` — `PipelineNotFoundError`, `PipelineExecutionNotFoundError` — tests implícitos en T-04/T-05
+**✅ COMPLETADA — 69 tests GREEN**
 
-  **FASE 1 PENDIENTE: ~29 tests**
+- [x] **T-01**: Value Object `PipelineTarget` — 7 tests GREEN
+- [x] **T-02**: Value Object `PipelineKitConfig` — 12 tests GREEN
+- [x] **T-03**: Value Object `PipelineStatus` — 14 tests GREEN
+- [x] **T-04**: Entity `Pipeline` — 16 tests GREEN (update, resolved_sudo_for, resolved_debug_level_for, has_local_server, equality)
+- [x] **T-05**: Entity `PipelineExecution` — 14 tests GREEN (start, mark_finished RN-20, equality, invalid transitions)
+- [x] **T-06**: Domain Exceptions — `PipelineNotFoundError`, `PipelineExecutionNotFoundError`, `InvalidPipelineTargetError`, `InvalidPipelineKitConfigError`, `InvalidPipelineStatusError`
 
 ## Fase 2: Use Cases (Application Layer) — CQRS
 
@@ -135,8 +133,8 @@
 
 | Fase | Estado | Tests | Completitud |
 |------|--------|-------|-------------|
-| Fase 0 - Estructura | ⏳ **PENDIENTE** | — | 0% — **bloquea todo** |
-| Fase 1 - Domain Layer | ⏳ **PENDIENTE** | — | 0% |
+| Fase 0 - Estructura | ✅ **COMPLETADA** | — | 100% |
+| Fase 1 - Domain Layer | ✅ **COMPLETADA** | 69 GREEN | 100% |
 | Fase 2 - Use Cases (CQRS) | ⏳ **PENDIENTE** | — | 0% |
 | Fase 3 - Infrastructure | ⏳ **PENDIENTE** | — | 0% |
 | Fase 4 - Presentation | ⏳ **PENDIENTE** | — | 0% |

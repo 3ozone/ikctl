@@ -10,12 +10,12 @@ Endpoints:
     GET    /api/v1/servers/{id}/health   — health check SSH (T-56)
     POST   /api/v1/servers/{id}/command  — ejecutar comando ad-hoc (T-57)
 """
-from typing import Annotated, Literal, Union
+from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Query, Response, status
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from app.v1.servers.application.commands.delete_server import DeleteServer
 from app.v1.servers.application.commands.register_local_server import RegisterLocalServer
@@ -43,8 +43,6 @@ from app.v1.servers.infrastructure.presentation.schemas import (
     AdHocCommandRequest,
     AdHocCommandResponse,
     HealthCheckResponse,
-    RegisterLocalServerRequest,
-    RegisterServerRequest,
     ServerListResponse,
     ServerResponse,
     ToggleServerStatusRequest,
@@ -58,20 +56,25 @@ router = APIRouter(prefix="/api/v1/servers", tags=["servers"])
 
 
 # ---------------------------------------------------------------------------
-# Schemas internos para el discriminador
+# Schema unificado para POST /api/v1/servers
 # ---------------------------------------------------------------------------
 
 
-class _CreateServerBody(RegisterServerRequest):
-    """Extiende RegisterServerRequest añadiendo el campo discriminador `type`."""
+class _CreateServerUnifiedBody(BaseModel):
+    """Body unificado para crear servidor remoto o local.
 
-    type: Literal["remote"] = "remote"
+    - Si `type` es "local" (o no se envía y `host` está ausente): servidor local.
+    - Si `type` es "remote" o no se envía pero `host` está presente: servidor remoto.
 
+    Compatibilidad: `type` es opcional para no romper clientes que no lo incluyen.
+    """
 
-class _CreateLocalServerBody(RegisterLocalServerRequest):
-    """Extiende RegisterLocalServerRequest añadiendo el campo discriminador `type`."""
-
-    type: Literal["local"] = "local"
+    type: str = Field(default="remote", examples=["remote", "local"])
+    name: str = Field(..., min_length=1, max_length=255, examples=["web-01"])
+    host: str | None = Field(None, min_length=1, max_length=255, examples=["192.168.1.10"])
+    port: int = Field(22, ge=1, le=65535, examples=[22])
+    credential_id: str | None = Field(None, examples=["cred-uuid"])
+    description: str | None = Field(None, max_length=1024)
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +108,7 @@ def _to_server_response(result) -> ServerResponse:
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_server(
-    body: Annotated[Union[_CreateServerBody, _CreateLocalServerBody], Field(discriminator="type")],
+    body: _CreateServerUnifiedBody,
     user_id: Annotated[str, Depends(get_current_user_id)],
     user_role: Annotated[str, Depends(get_current_user_role)],
     register_server: Annotated[RegisterServer, Depends(get_register_server)],
@@ -115,6 +118,8 @@ async def create_server(
 
     - `type=remote` (por defecto): requiere `host`, `port` y `credential_id`.
     - `type=local`: solo requiere `name`. Solo usuarios con rol `admin` pueden crearlo.
+
+    El campo `type` es opcional: si no se envía se asume "remote".
 
     Returns:
         201 ServerResponse con los datos del servidor creado.
@@ -127,7 +132,7 @@ async def create_server(
     """
     correlation_id = str(uuid4())
 
-    if isinstance(body, _CreateLocalServerBody):
+    if body.type == "local":
         result = await register_local_server.execute(
             user_id=user_id,
             user_role=user_role,

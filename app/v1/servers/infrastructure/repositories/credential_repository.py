@@ -81,7 +81,7 @@ class SQLAlchemyCredentialRepository(CredentialRepository):
         except Exception as exc:
             raise EncryptionError(f"Error descifrando campo: {exc}") from exc
 
-    def _entity_to_model(self, credential: Credential) -> CredentialModel:
+    def entity_to_model(self, credential: Credential) -> CredentialModel:
         return CredentialModel(
             id=credential.id,
             user_id=credential.user_id,
@@ -94,7 +94,7 @@ class SQLAlchemyCredentialRepository(CredentialRepository):
             updated_at=credential.updated_at,
         )
 
-    def _model_to_entity(self, model: CredentialModel) -> Credential:
+    def model_to_entity(self, model: CredentialModel) -> Credential:
         return Credential(
             id=model.id,
             user_id=model.user_id,
@@ -119,7 +119,7 @@ class SQLAlchemyCredentialRepository(CredentialRepository):
             DatabaseQueryError: Si falla la persistencia.
         """
         try:
-            model = self._entity_to_model(credential)
+            model = self.entity_to_model(credential)
             self._session.add(model)
             await self._session.commit()
         except EncryptionError:
@@ -145,7 +145,7 @@ class SQLAlchemyCredentialRepository(CredentialRepository):
                 )
             )
             model = result.scalar_one_or_none()
-            return self._model_to_entity(model) if model else None
+            return self.model_to_entity(model) if model else None
         except EncryptionError:
             raise
         except Exception as exc:
@@ -169,7 +169,7 @@ class SQLAlchemyCredentialRepository(CredentialRepository):
                 .limit(per_page)
             )
             models = result.scalars().all()
-            return [self._model_to_entity(m) for m in models]
+            return [self.model_to_entity(m) for m in models]
         except EncryptionError:
             raise
         except Exception as exc:

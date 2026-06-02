@@ -31,6 +31,9 @@ class Kit:
         tags: Lista de etiquetas del kit (del manifest).
         values: Valores configurables del kit (del manifest).
         debug_level: Nivel de debug del kit (del manifest).
+        upload_files: Archivos a subir al servidor remoto (del manifest).
+        pipeline_files: Archivos ejecutables del pipeline (subconjunto de upload_files).
+        backup_files: Rutas a respaldar en el servidor remoto antes de la ejecución.
         sync_status: Estado de sincronización del kit.
         last_synced_at: Fecha de la última sincronización exitosa.
         last_commit_sha: SHA del último commit sincronizado.
@@ -50,6 +53,9 @@ class Kit:
     tags: list[str]
     values: dict
     debug_level: str
+    upload_files: tuple[str, ...]
+    pipeline_files: tuple[str, ...]
+    backup_files: tuple[str, ...]
     sync_status: SyncStatus
     last_synced_at: Optional[datetime]
     last_commit_sha: Optional[str]
@@ -74,10 +80,14 @@ class Kit:
         self.tags = list(manifest.tags)
         self.values = dict(manifest.values)
         self.debug_level = manifest.debug_level
+        self.upload_files = manifest.upload_files
+        self.pipeline_files = manifest.pipeline_files
+        self.backup_files = manifest.backup_files
         self.sync_status = SyncStatus("synced")
         self.last_commit_sha = commit_sha
         self.last_synced_at = synced_at
         self.sync_error_message = None
+        self.updated_at = synced_at
 
     def mark_sync_error(self, message: str) -> None:
         """Marca el kit con un error de sincronización.

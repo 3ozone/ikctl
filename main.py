@@ -40,6 +40,10 @@ from app.v1.shared.infrastructure.database import (
 from app.v1.shared.infrastructure.cache import create_valkey_client, close_valkey_client
 from app.v1.auth.infrastructure.presentation.routes import router as auth_router
 from app.v1.servers.infrastructure.presentation.exception_handlers import register_exception_handlers as register_servers_exception_handlers
+from app.v1.kits.infrastructure.presentation.exception_handlers import register_exception_handlers as register_kits_exception_handlers
+from app.v1.operations.infrastructure.presentation.exception_handlers import register_exception_handlers as register_operations_exception_handlers
+from app.v1.kits.infrastructure.presentation.routes import router as kits_router
+from app.v1.operations.infrastructure.presentation.routes import router as operations_router
 from app.v1.servers.infrastructure.presentation.routes_credentials import router as credentials_router
 from app.v1.servers.infrastructure.presentation.routes_groups import router as groups_router
 from app.v1.servers.infrastructure.presentation.routes_servers import router as servers_router
@@ -53,6 +57,37 @@ from app.v1.servers.infrastructure.repositories.group_repository import (
     SQLAlchemyGroupRepository,
 )
 from app.v1.servers.infrastructure.adapters.connection_factory import ConnectionFactory
+from app.v1.kits.application.commands.delete_repository import DeleteRepository as DeleteRepositoryUC
+from app.v1.kits.application.commands.register_repository import RegisterRepository as RegisterRepositoryUC
+from app.v1.kits.application.commands.sync_repository import SyncRepository as SyncRepositoryUC
+from app.v1.kits.application.commands.update_repository import UpdateRepository as UpdateRepositoryUC
+from app.v1.kits.application.queries.get_kit import GetKit
+from app.v1.kits.application.queries.get_repository import GetRepository
+from app.v1.kits.application.queries.list_kits import ListKits
+from app.v1.kits.application.queries.list_repositories import ListRepositories
+from app.v1.kits.infrastructure.adapters.git_python_client import GitPythonClient
+from app.v1.kits.infrastructure.repositories.kit_repository import SQLAlchemyKitRepository
+from app.v1.kits.infrastructure.repositories.repository_repository import (
+    SQLAlchemyRepositoryRepository as SQLAlchemyKitsRepositoryRepository,
+)
+from app.v1.operations.application.tasks.execute_operation import ExecuteOperation
+from app.v1.operations.application.tasks.restore_backup import RestoreBackupTask
+from app.v1.operations.infrastructure.adapters.credential_read_adapter import (
+    CredentialReadAdapter as OperationsCredentialReadAdapter,
+)
+from app.v1.operations.infrastructure.adapters.git_repository_read_adapter import (
+    GitRepositoryReadAdapter,
+)
+from app.v1.operations.infrastructure.adapters.kit_read_adapter import KitReadAdapter
+from app.v1.operations.infrastructure.adapters.server_read_adapter import ServerReadAdapter
+from app.v1.operations.infrastructure.adapters.ssh_kit_executor import SSHKitExecutor
+from app.v1.operations.infrastructure.adapters.ssh_backup_restorer import SSHBackupRestorer
+from app.v1.operations.infrastructure.repositories.file_cache_repository import (
+    SQLAlchemyFileCacheRepository,
+)
+from app.v1.operations.infrastructure.repositories.operation_repository import (
+    SQLAlchemyOperationRepository,
+)
 
 # ---------------------------------------------------------------------------
 # Singleton: Settings
@@ -63,6 +98,11 @@ settings = Settings()
 # Singleton: EventBus
 # ---------------------------------------------------------------------------
 event_bus = InMemoryEventBus()
+
+# ---------------------------------------------------------------------------
+# Singleton: módulo kits — GitPythonClient es stateless, se instancia una vez
+# ---------------------------------------------------------------------------
+git_python_client = GitPythonClient()
 
 # ---------------------------------------------------------------------------
 # Singleton: adaptadores stateless
@@ -175,6 +215,103 @@ def get_connection_factory(
 
 
 # ---------------------------------------------------------------------------
+# Scoped: repositories módulo kits
+# ---------------------------------------------------------------------------
+def get_kits_repository_repository(
+    session: AsyncSession = Depends(get_db_session_dep),
+) -> SQLAlchemyKitsRepositoryRepository:
+    """Dependencia FastAPI — proporciona un KitsRepositoryRepository con sesión scoped."""
+    return SQLAlchemyKitsRepositoryRepository(session)
+
+
+def get_kit_repository(
+    session: AsyncSession = Depends(get_db_session_dep),
+) -> SQLAlchemyKitRepository:
+    """Dependencia FastAPI — proporciona un KitRepository con sesión scoped."""
+    return SQLAlchemyKitRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Scoped: use cases módulo kits — Commands
+# ---------------------------------------------------------------------------
+def get_register_repository_uc(
+    repo_repo: SQLAlchemyKitsRepositoryRepository = Depends(get_kits_repository_repository),
+    credential_repo: SQLAlchemyCredentialRepository = Depends(get_credential_repository),
+) -> RegisterRepositoryUC:
+    """Dependencia FastAPI — RegisterRepository use case."""
+    return RegisterRepositoryUC(
+        repository_repository=repo_repo,
+        credential_repository=credential_repo,
+        event_bus=event_bus,
+    )
+
+
+def get_update_repository_uc(
+    repo_repo: SQLAlchemyKitsRepositoryRepository = Depends(get_kits_repository_repository),
+    credential_repo: SQLAlchemyCredentialRepository = Depends(get_credential_repository),
+) -> UpdateRepositoryUC:
+    """Dependencia FastAPI — UpdateRepository use case."""
+    return UpdateRepositoryUC(
+        repository_repository=repo_repo,
+        credential_repository=credential_repo,
+    )
+
+
+def get_delete_repository_uc(
+    repo_repo: SQLAlchemyKitsRepositoryRepository = Depends(get_kits_repository_repository),
+) -> DeleteRepositoryUC:
+    """Dependencia FastAPI — DeleteRepository use case."""
+    return DeleteRepositoryUC(
+        repository_repository=repo_repo,
+        event_bus=event_bus,
+    )
+
+
+def get_sync_repository_uc(
+    repo_repo: SQLAlchemyKitsRepositoryRepository = Depends(get_kits_repository_repository),
+    kit_repo: SQLAlchemyKitRepository = Depends(get_kit_repository),
+) -> SyncRepositoryUC:
+    """Dependencia FastAPI — SyncRepository use case."""
+    return SyncRepositoryUC(
+        repository_repository=repo_repo,
+        kit_repository=kit_repo,
+        git_client=git_python_client,
+        event_bus=event_bus,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Scoped: use cases módulo kits — Queries
+# ---------------------------------------------------------------------------
+def get_get_repository_uc(
+    repo_repo: SQLAlchemyKitsRepositoryRepository = Depends(get_kits_repository_repository),
+) -> GetRepository:
+    """Dependencia FastAPI — GetRepository use case."""
+    return GetRepository(repository_repository=repo_repo)
+
+
+def get_list_repositories_uc(
+    repo_repo: SQLAlchemyKitsRepositoryRepository = Depends(get_kits_repository_repository),
+) -> ListRepositories:
+    """Dependencia FastAPI — ListRepositories use case."""
+    return ListRepositories(repository_repository=repo_repo)
+
+
+def get_get_kit_uc(
+    kit_repo: SQLAlchemyKitRepository = Depends(get_kit_repository),
+) -> GetKit:
+    """Dependencia FastAPI — GetKit use case."""
+    return GetKit(kit_repository=kit_repo)
+
+
+def get_list_kits_uc(
+    kit_repo: SQLAlchemyKitRepository = Depends(get_kit_repository),
+) -> ListKits:
+    """Dependencia FastAPI — ListKits use case."""
+    return ListKits(kit_repository=kit_repo)
+
+
+# ---------------------------------------------------------------------------
 # Lifespan (startup / shutdown)
 # ---------------------------------------------------------------------------
 @asynccontextmanager
@@ -190,6 +327,59 @@ async def lifespan(app: FastAPI):  # noqa: ANN001
     app.state.login_attempt_tracker = login_attempt_tracker
     app.state.session_factory = _session_factory
     app.state.encryption_key = settings.ENCRYPTION_KEY
+    app.state.git_python_client = git_python_client
+
+    # ── operations: execute_operation_fn ────────────────────────────────
+    # Closure que crea sus propias sesiones (runs in BackgroundTasks, no request scope).
+    async def _execute_operation_fn(operation_id: str) -> None:
+        async for session in get_db_session(_session_factory):
+            file_cache = SQLAlchemyFileCacheRepository(session)
+            git_repo_port = GitRepositoryReadAdapter(session)
+            credential_repo = OperationsCredentialReadAdapter(session, settings.ENCRYPTION_KEY)
+
+            ssh_executor = SSHKitExecutor(
+                git_client=git_python_client,
+                file_cache=file_cache,
+                git_repository_port=git_repo_port,
+                credential_repository=credential_repo,
+            )
+
+            operation_repo = SQLAlchemyOperationRepository(session)
+            server_repo = ServerReadAdapter(session)
+            kit_repo = KitReadAdapter(session)
+
+            task = ExecuteOperation(
+                operation_repository=operation_repo,
+                server_repository=server_repo,
+                kit_repository=kit_repo,
+                credential_repository=credential_repo,
+                remote_kit_executor=ssh_executor,
+                event_bus=event_bus,
+            )
+            await task.execute(operation_id)
+
+    app.state.execute_operation_fn = _execute_operation_fn
+
+    # ── operations: restore_operation_fn ──────────────────────────────
+    # Closure que crea sus propias sesiones (runs in BackgroundTasks).
+    async def _restore_operation_fn(operation_id: str) -> None:
+        async for session in get_db_session(_session_factory):
+            operation_repo = SQLAlchemyOperationRepository(session)
+            server_repo = ServerReadAdapter(session)
+            credential_repo = OperationsCredentialReadAdapter(session, settings.ENCRYPTION_KEY)
+
+            backup_restorer = SSHBackupRestorer(
+                server_repo=server_repo,
+                credential_repo=credential_repo,
+            )
+
+            task = RestoreBackupTask(
+                operation_repository=operation_repo,
+                backup_restorer=backup_restorer,
+            )
+            await task.execute(operation_id)
+
+    app.state.restore_operation_fn = _restore_operation_fn
     yield
     # Shutdown
     await _engine.dispose()
@@ -225,6 +415,8 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
     register_servers_exception_handlers(app)
+    register_kits_exception_handlers(app)
+    register_operations_exception_handlers(app)
 
     # Health checks
     @app.get("/")
@@ -249,10 +441,16 @@ def create_app() -> FastAPI:
     # T-34+ — routers auth
     app.include_router(auth_router)
 
-    # T-45+ — routers servers
+    # T-34+ — routers servers
     app.include_router(credentials_router)
     app.include_router(servers_router)
     app.include_router(groups_router)
+
+    # T-29+ — routers kits
+    app.include_router(kits_router)
+
+    # T-28+ — routers operations
+    app.include_router(operations_router)
 
     return app
 

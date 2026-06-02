@@ -62,12 +62,12 @@ class SSHConnectionAdapter(Connection):
                 "port": self._port,
                 "username": self._username,
                 "connect_timeout": self._connect_timeout,
-                # No verificar host keys en v1 (ver ADR-003)
                 "known_hosts": None,
             }
 
             if self._private_key is not None:
-                connect_kwargs["client_keys"] = [self._private_key]
+                key = asyncssh.import_private_key(self._private_key)
+                connect_kwargs["client_keys"] = [key]
             if self._password is not None:
                 connect_kwargs["password"] = self._password
 

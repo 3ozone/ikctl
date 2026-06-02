@@ -16,6 +16,8 @@ from app.v1.servers.infrastructure.exceptions import SSHConnectionError
 # Fixtures
 # ---------------------------------------------------------------------------
 
+_MOCK_KEY = MagicMock(name="imported_private_key")
+
 
 def _make_adapter(
     host: str = "192.168.1.10",
@@ -43,6 +45,21 @@ def _make_process_result(returncode: int = 0, stdout: str = "", stderr: str = ""
     return result
 
 
+def _patch_asyncssh():
+    """Parchea asyncssh.connect y asyncssh.import_private_key para los tests."""
+    return patch(
+        "app.v1.servers.infrastructure.adapters.ssh_connection.asyncssh.connect",
+        new=AsyncMock(return_value=AsyncMock()),
+    )
+
+
+def _patch_import_key():
+    return patch(
+        "app.v1.servers.infrastructure.adapters.ssh_connection.asyncssh.import_private_key",
+        new=MagicMock(return_value=_MOCK_KEY),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -58,7 +75,7 @@ async def test_execute_returns_stdout_stderr_returncode():
     mock_conn = AsyncMock()
     mock_conn.run = AsyncMock(return_value=process_result)
 
-    with patch(
+    with _patch_import_key(), patch(
         "app.v1.servers.infrastructure.adapters.ssh_connection.asyncssh.connect",
         new=AsyncMock(return_value=mock_conn),
     ):
@@ -80,7 +97,7 @@ async def test_execute_with_sudo_prefixes_command():
     mock_conn = AsyncMock()
     mock_conn.run = AsyncMock(return_value=process_result)
 
-    with patch(
+    with _patch_import_key(), patch(
         "app.v1.servers.infrastructure.adapters.ssh_connection.asyncssh.connect",
         new=AsyncMock(return_value=mock_conn),
     ):
@@ -94,7 +111,7 @@ async def test_execute_raises_ssh_connection_error_on_failure():
     """Test 3: execute lanza SSHConnectionError cuando asyncssh falla."""
     adapter = _make_adapter()
 
-    with patch(
+    with _patch_import_key(), patch(
         "app.v1.servers.infrastructure.adapters.ssh_connection.asyncssh.connect",
         new=AsyncMock(side_effect=Exception("Connection refused")),
     ):
@@ -106,13 +123,12 @@ async def test_execute_raises_ssh_connection_error_on_failure():
 async def test_file_exists_returns_true_when_file_present():
     """Test 4: file_exists retorna True cuando el archivo existe en el servidor."""
     adapter = _make_adapter()
-    # exit_code 0 → archivo existe
     process_result = _make_process_result(returncode=0, stdout="", stderr="")
 
     mock_conn = AsyncMock()
     mock_conn.run = AsyncMock(return_value=process_result)
 
-    with patch(
+    with _patch_import_key(), patch(
         "app.v1.servers.infrastructure.adapters.ssh_connection.asyncssh.connect",
         new=AsyncMock(return_value=mock_conn),
     ):
@@ -125,13 +141,12 @@ async def test_file_exists_returns_true_when_file_present():
 async def test_file_exists_returns_false_when_file_absent():
     """Test 5: file_exists retorna False cuando el archivo no existe (exit_code != 0)."""
     adapter = _make_adapter()
-    # exit_code 1 → archivo no existe
     process_result = _make_process_result(returncode=1, stdout="", stderr="")
 
     mock_conn = AsyncMock()
     mock_conn.run = AsyncMock(return_value=process_result)
 
-    with patch(
+    with _patch_import_key(), patch(
         "app.v1.servers.infrastructure.adapters.ssh_connection.asyncssh.connect",
         new=AsyncMock(return_value=mock_conn),
     ):
@@ -153,7 +168,7 @@ async def test_upload_file_calls_sftp_put():
     mock_sftp.__aenter__ = AsyncMock(return_value=mock_sftp)
     mock_sftp.__aexit__ = AsyncMock(return_value=None)
 
-    with patch(
+    with _patch_import_key(), patch(
         "app.v1.servers.infrastructure.adapters.ssh_connection.asyncssh.connect",
         new=AsyncMock(return_value=mock_conn),
     ):
@@ -173,11 +188,10 @@ async def test_close_disconnects_connection():
     mock_conn.close = MagicMock()
     mock_conn.wait_closed = AsyncMock()
 
-    with patch(
+    with _patch_import_key(), patch(
         "app.v1.servers.infrastructure.adapters.ssh_connection.asyncssh.connect",
         new=AsyncMock(return_value=mock_conn),
     ):
-        # Forzar apertura de conexión
         await adapter.execute("echo test")
         await adapter.close()
 
@@ -193,12 +207,11 @@ async def test_execute_reuses_existing_connection():
     mock_conn = AsyncMock()
     mock_conn.run = AsyncMock(return_value=process_result)
 
-    with patch(
+    with _patch_import_key(), patch(
         "app.v1.servers.infrastructure.adapters.ssh_connection.asyncssh.connect",
         new=AsyncMock(return_value=mock_conn),
     ) as mock_connect:
         await adapter.execute("cmd1")
         await adapter.execute("cmd2")
 
-    # connect solo debe llamarse una vez pese a dos execute
     mock_connect.assert_awaited_once()

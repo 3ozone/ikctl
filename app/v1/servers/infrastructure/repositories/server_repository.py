@@ -27,7 +27,7 @@ class SQLAlchemyServerRepository(ServerRepository):
     # Helpers de conversión
     # ------------------------------------------------------------------
 
-    def _entity_to_model(self, server: Server) -> ServerModel:
+    def entity_to_model(self, server: Server) -> ServerModel:
         return ServerModel(
             id=server.id,
             user_id=server.user_id,
@@ -45,7 +45,7 @@ class SQLAlchemyServerRepository(ServerRepository):
             updated_at=server.updated_at,
         )
 
-    def _model_to_entity(self, model: ServerModel) -> Server:
+    def model_to_entity(self, model: ServerModel) -> Server:
         return Server(
             id=model.id,
             user_id=model.user_id,
@@ -74,7 +74,7 @@ class SQLAlchemyServerRepository(ServerRepository):
             DatabaseQueryError: Si falla la persistencia.
         """
         try:
-            model = self._entity_to_model(server)
+            model = self.entity_to_model(server)
             self._session.add(model)
             await self._session.commit()
         except Exception as exc:
@@ -98,7 +98,7 @@ class SQLAlchemyServerRepository(ServerRepository):
                 )
             )
             model = result.scalar_one_or_none()
-            return self._model_to_entity(model) if model else None
+            return self.model_to_entity(model) if model else None
         except Exception as exc:
             raise DatabaseQueryError(f"Error buscando servidor: {exc}") from exc
 
@@ -119,7 +119,7 @@ class SQLAlchemyServerRepository(ServerRepository):
                 .offset(offset)
                 .limit(per_page)
             )
-            return [self._model_to_entity(m) for m in result.scalars().all()]
+            return [self.model_to_entity(m) for m in result.scalars().all()]
         except Exception as exc:
             raise DatabaseQueryError(f"Error listando servidores: {exc}") from exc
 
@@ -184,7 +184,7 @@ class SQLAlchemyServerRepository(ServerRepository):
                     ServerModel.type == "local",
                 )
             )
-            return [self._model_to_entity(m) for m in result.scalars().all()]
+            return [self.model_to_entity(m) for m in result.scalars().all()]
         except Exception as exc:
             raise DatabaseQueryError(f"Error buscando servidores locales: {exc}") from exc
 

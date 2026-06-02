@@ -19,6 +19,9 @@ def make_kit(**overrides) -> Kit:
         "tags": [],
         "values": {},
         "debug_level": "errors",
+        "upload_files": (),
+        "pipeline_files": (),
+        "backup_files": (),
         "sync_status": SyncStatus("never_synced"),
         "last_synced_at": None,
         "last_commit_sha": None,
@@ -120,3 +123,64 @@ class TestKitQueries:
         """is_usable() devuelve False cuando is_deleted es True."""
         kit = make_kit(sync_status=SyncStatus("synced"), is_deleted=True)
         assert kit.is_usable() is False
+
+
+class TestKitFileFields:
+    """Tests de los campos de archivos del manifest persistidos en la entidad Kit."""
+
+    def test_kit_has_upload_files_field_defaulting_to_empty_tuple(self):
+        """Kit tiene el campo upload_files que por defecto es una tupla vacía."""
+        kit = make_kit()
+        assert kit.upload_files == ()
+
+    def test_kit_has_pipeline_files_field_defaulting_to_empty_tuple(self):
+        """Kit tiene el campo pipeline_files que por defecto es una tupla vacía."""
+        kit = make_kit()
+        assert kit.pipeline_files == ()
+
+    def test_kit_has_backup_files_field_defaulting_to_empty_tuple(self):
+        """Kit tiene el campo backup_files que por defecto es una tupla vacía."""
+        kit = make_kit()
+        assert kit.backup_files == ()
+
+    def test_kit_stores_upload_files_as_tuple(self):
+        """Kit almacena upload_files como tupla de strings."""
+        kit = make_kit(upload_files=("haproxy.cfg.j2", "install.sh"))
+        assert kit.upload_files == ("haproxy.cfg.j2", "install.sh")
+
+    def test_kit_stores_pipeline_files_as_tuple(self):
+        """Kit almacena pipeline_files como tupla de strings."""
+        kit = make_kit(
+            upload_files=("install.sh",),
+            pipeline_files=("install.sh",),
+        )
+        assert kit.pipeline_files == ("install.sh",)
+
+    def test_kit_stores_backup_files_as_tuple(self):
+        """Kit almacena backup_files como tupla de strings."""
+        kit = make_kit(backup_files=("/etc/haproxy/haproxy.cfg",))
+        assert kit.backup_files == ("/etc/haproxy/haproxy.cfg",)
+
+    def test_mark_synced_updates_upload_files_from_manifest(self):
+        """mark_synced() actualiza upload_files desde el manifest."""
+        kit = make_kit()
+        manifest = KitManifest.from_dict(MANIFEST_DATA)
+        now = datetime(2026, 4, 12, tzinfo=timezone.utc)
+        kit.mark_synced(manifest=manifest, commit_sha="abc123", synced_at=now)
+        assert kit.upload_files == ("haproxy.cfg.j2", "install.sh")
+
+    def test_mark_synced_updates_pipeline_files_from_manifest(self):
+        """mark_synced() actualiza pipeline_files desde el manifest."""
+        kit = make_kit()
+        manifest = KitManifest.from_dict(MANIFEST_DATA)
+        now = datetime(2026, 4, 12, tzinfo=timezone.utc)
+        kit.mark_synced(manifest=manifest, commit_sha="abc123", synced_at=now)
+        assert kit.pipeline_files == ("install.sh",)
+
+    def test_mark_synced_updates_backup_files_from_manifest(self):
+        """mark_synced() actualiza backup_files desde el manifest."""
+        kit = make_kit()
+        manifest = KitManifest.from_dict(MANIFEST_DATA)
+        now = datetime(2026, 4, 12, tzinfo=timezone.utc)
+        kit.mark_synced(manifest=manifest, commit_sha="abc123", synced_at=now)
+        assert kit.backup_files == ("/etc/haproxy/haproxy.cfg",)

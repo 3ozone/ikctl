@@ -1,4 +1,5 @@
 """Use Case para sincronizar un repositorio Git y reconciliar sus kits."""
+import shutil
 import tempfile
 from datetime import datetime, timezone
 from typing import Optional
@@ -69,7 +70,26 @@ class SyncRepository:
             raise RepositoryNotFoundError()
 
         dest_path = tempfile.mkdtemp()
+        try:
+            return await self._sync_in_dir(
+                repository=repository,
+                dest_path=dest_path,
+                user_id=user_id,
+                repository_id=repository_id,
+                correlation_id=correlation_id,
+            )
+        finally:
+            shutil.rmtree(dest_path, ignore_errors=True)
 
+    async def _sync_in_dir(
+        self,
+        repository,
+        dest_path: str,
+        user_id: str,
+        repository_id: str,
+        correlation_id: str,
+    ) -> RepositorySyncResult:
+        """Ejecuta el sync dentro del directorio temporal ya creado."""
         # --- Clone ---
         try:
             commit_sha = await self._git_client.clone_shallow(
@@ -100,7 +120,7 @@ class SyncRepository:
         kits_created: int = 0
         kits_updated: int = 0
         kits_deleted: int = 0
-        new_kit_ids: list[str] = []
+        new_kits: list[Kit] = []
 
         for path in index.kit_paths:
             try:
@@ -128,6 +148,9 @@ class SyncRepository:
                     tags=list(manifest.tags),
                     values=dict(manifest.values),
                     debug_level=manifest.debug_level,
+                    upload_files=manifest.upload_files,
+                    pipeline_files=manifest.pipeline_files,
+                    backup_files=manifest.backup_files,
                     sync_status=SyncStatus("synced"),
                     last_synced_at=now,
                     last_commit_sha=commit_sha,
@@ -137,7 +160,7 @@ class SyncRepository:
                     updated_at=now,
                 )
                 await self._kit_repo.save(kit)
-                new_kit_ids.append(kit.id)
+                new_kits.append(kit)
                 kits_created += 1
 
         # Soft-delete de kits que ya no están en el índice
@@ -165,14 +188,14 @@ class SyncRepository:
                     correlation_id=correlation_id,
                 )
             )
-            for kit_id in new_kit_ids:
+            for new_kit in new_kits:
                 await self._event_bus.publish(
                     KitDiscovered(
-                        kit_id=kit_id,
+                        kit_id=new_kit.id,
                         repository_id=repository_id,
                         user_id=user_id,
-                        path_in_repo="",
-                        name="",
+                        path_in_repo=new_kit.path_in_repo,
+                        name=new_kit.name,
                         correlation_id=correlation_id,
                     )
                 )
