@@ -6,7 +6,7 @@ No contienen lógica de negocio — delegan a use cases.
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -15,14 +15,24 @@ from pydantic import BaseModel, Field
 
 
 class LaunchOperationRequest(BaseModel):
-    """Body para POST /api/v1/operations."""
+    """Body para POST /api/v1/operations.
 
-    server_id: str = Field(
-        ...,
+    Exactamente uno de `server_id` o `group_id` debe estar presente.
+    """
+
+    server_id: Optional[str] = Field(
+        None,
         min_length=1,
         max_length=36,
         examples=["550e8400-e29b-41d4-a716-446655440000"],
-        description="ID del servidor destino",
+        description="ID del servidor destino (exclusivo con group_id)",
+    )
+    group_id: Optional[str] = Field(
+        None,
+        min_length=1,
+        max_length=36,
+        examples=["550e8400-e29b-41d4-a716-446655440002"],
+        description="ID del grupo de servidores destino (exclusivo con server_id)",
     )
     kit_id: str = Field(
         ...,
@@ -45,6 +55,17 @@ class LaunchOperationRequest(BaseModel):
         False,
         description="Si True, ejecuta los scripts del pipeline con sudo.",
     )
+
+    @model_validator(mode="after")
+    def validate_target(self) -> "LaunchOperationRequest":
+        """Valida que exactamente uno de server_id o group_id esté presente."""
+        has_server = self.server_id is not None
+        has_group = self.group_id is not None
+        if has_server == has_group:
+            raise ValueError(
+                "Exactamente uno de 'server_id' o 'group_id' debe estar presente"
+            )
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -71,6 +92,12 @@ class OperationResponse(BaseModel):
     finished_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
+
+
+class BatchOperationResponse(BaseModel):
+    """Response para operaciones batch (lanzadas sobre un grupo de servidores)."""
+
+    operations: list[OperationResponse]
 
 
 class OperationListResponse(BaseModel):

@@ -13,6 +13,9 @@ from fastapi import BackgroundTasks, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.v1.operations.application.commands.cancel_operation import CancelOperation
+from app.v1.operations.application.commands.launch_batch_operation import (
+    LaunchBatchOperation,
+)
 from app.v1.operations.application.commands.launch_operation import LaunchOperation
 from app.v1.operations.application.commands.restore_operation_backup import (
     RestoreOperationBackup,
@@ -147,6 +150,28 @@ def get_launch_operation_uc(
 ) -> LaunchOperation:
     """Construye el use case LaunchOperation con sus dependencias."""
     return LaunchOperation(
+        operation_repository=operation_repo,
+        server_repository=server_repo,
+        kit_repository=kit_repo,
+        task_queue=task_queue,
+        event_bus=event_bus,
+        execute_fn=execute_fn,
+    )
+
+
+def get_launch_batch_operation_uc(
+    request: Request,
+    operation_repo: Annotated[
+        SQLAlchemyOperationRepository, Depends(get_operation_repository)
+    ],
+    server_repo: Annotated[ServerReadAdapter, Depends(get_server_read_adapter)],
+    kit_repo: Annotated[KitReadAdapter, Depends(get_kit_read_adapter)],
+    task_queue: Annotated[FastAPITaskQueue, Depends(get_task_queue)],
+    event_bus=Depends(get_event_bus),
+    execute_fn: Annotated[Callable, Depends(get_execute_operation_fn)] = None,
+) -> LaunchBatchOperation:
+    """Construye el use case LaunchBatchOperation con sus dependencias."""
+    return LaunchBatchOperation(
         operation_repository=operation_repo,
         server_repository=server_repo,
         kit_repository=kit_repo,

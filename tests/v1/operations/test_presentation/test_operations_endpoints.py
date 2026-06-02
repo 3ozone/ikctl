@@ -7,6 +7,10 @@ Verifica:
 4. POST   /api/v1/operations/{id}/cancel  → 200 cancelled
 5. POST   /api/v1/operations/{id}/cancel  → 409 si transición inválida
 6. POST   /api/v1/operations              → 422 si servidor inactivo
+7. POST   /api/v1/operations              → 422 si ni server_id ni group_id
+8. POST   /api/v1/operations              → 422 si server_id y group_id ambos presentes
+9. POST   /api/v1/operations (batch)      → 201 BatchOperationResponse si group_id
+10. POST  /api/v1/operations (batch)      → 404 si grupo no encontrado
 """
 from datetime import datetime, timezone
 
@@ -14,11 +18,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.v1.operations.application.dtos.operation_dtos import (
+    BatchOperationResult,
     OperationListResult,
     OperationResult,
     RestoreResult,
 )
-from app.v1.operations.application.exceptions import ServerNotActiveError
+from app.v1.operations.application.exceptions import GroupNotFoundError, ServerNotActiveError
 from app.v1.operations.domain.exceptions.operation import (
     InvalidOperationTransitionError,
     OperationNotFoundError,
@@ -27,6 +32,7 @@ from app.v1.operations.infrastructure.presentation.deps import (
     get_cancel_operation_uc,
     get_current_user_id,
     get_get_operation_uc,
+    get_launch_batch_operation_uc,
     get_launch_operation_uc,
     get_list_operations_uc,
     get_restore_operation_backup_uc,
@@ -91,6 +97,27 @@ _RESTORE_RESULT = RestoreResult(
     restored_files=("/etc/nginx/nginx.conf.bak.ikctl",),
 )
 
+_GROUP_ID = "group-001"
+
+_OP_RESULT_2 = OperationResult(
+    operation_id="op-003",
+    user_id=_USER_ID,
+    server_id="server-002",
+    kit_id=_KIT_ID,
+    values={},
+    sudo=False,
+    status="pending",
+    debug_level="none",
+    output="",
+    backup_files=(),
+    created_at=_NOW,
+    updated_at=_NOW,
+    started_at=None,
+    finished_at=None,
+)
+
+_BATCH_RESULT = BatchOperationResult(operations=[_OP_RESULT, _OP_RESULT_2])
+
 _OP_RETRY_RESULT = OperationResult(
     operation_id=_NEW_OP_ID,
     user_id=_USER_ID,
@@ -122,6 +149,23 @@ class FakeLaunchOk:
 class FakeLaunchServerInactive:
     async def execute(self, **kwargs) -> OperationResult:
         raise ServerNotActiveError("El servidor está inactivo.")
+
+
+class FakeBatchNoop:
+    """Placeholder batch use case — no llamado en tests de operación single."""
+
+    async def execute(self, **kwargs):
+        raise AssertionError("FakeBatchNoop.execute no debería llamarse en este test")
+
+
+class FakeBatchOk:
+    async def execute(self, **kwargs) -> BatchOperationResult:
+        return _BATCH_RESULT
+
+
+class FakeBatchGroupNotFound:
+    async def execute(self, **kwargs) -> BatchOperationResult:
+        raise GroupNotFoundError("Grupo no encontrado.")
 
 
 class FakeListOk:
@@ -180,6 +224,7 @@ def _auth_headers() -> dict:
 @pytest.fixture()
 def client_launch_ok():
     app.dependency_overrides[get_launch_operation_uc] = lambda: FakeLaunchOk()
+    app.dependency_overrides[get_launch_batch_operation_uc] = lambda: FakeBatchNoop()
     app.dependency_overrides[get_current_user_id] = lambda: _USER_ID
     yield TestClient(app)
     app.dependency_overrides.clear()
@@ -188,6 +233,7 @@ def client_launch_ok():
 @pytest.fixture()
 def client_launch_inactive_server():
     app.dependency_overrides[get_launch_operation_uc] = lambda: FakeLaunchServerInactive()
+    app.dependency_overrides[get_launch_batch_operation_uc] = lambda: FakeBatchNoop()
     app.dependency_overrides[get_current_user_id] = lambda: _USER_ID
     yield TestClient(app)
     app.dependency_overrides.clear()
@@ -244,6 +290,24 @@ def client_restore_ok():
 @pytest.fixture()
 def client_retry_ok():
     app.dependency_overrides[get_retry_operation_uc] = lambda: FakeRetryOk()
+    app.dependency_overrides[get_current_user_id] = lambda: _USER_ID
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def client_batch_ok():
+    app.dependency_overrides[get_launch_operation_uc] = lambda: FakeBatchNoop()
+    app.dependency_overrides[get_launch_batch_operation_uc] = lambda: FakeBatchOk()
+    app.dependency_overrides[get_current_user_id] = lambda: _USER_ID
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def client_batch_group_not_found():
+    app.dependency_overrides[get_launch_operation_uc] = lambda: FakeBatchNoop()
+    app.dependency_overrides[get_launch_batch_operation_uc] = lambda: FakeBatchGroupNotFound()
     app.dependency_overrides[get_current_user_id] = lambda: _USER_ID
     yield TestClient(app)
     app.dependency_overrides.clear()
@@ -383,3 +447,62 @@ def test_retry_operation_returns_201(client_retry_ok: TestClient) -> None:
     data = resp.json()
     assert data["operation_id"] == _NEW_OP_ID
     assert data["status"] == "pending"
+
+
+# ---------------------------------------------------------------------------
+# T-10: POST /api/v1/operations — validador server_id / group_id
+# ---------------------------------------------------------------------------
+
+
+def test_launch_without_target_returns_422(client_launch_ok: TestClient) -> None:
+    """POST /api/v1/operations devuelve 422 si no se proporciona server_id ni group_id."""
+    resp = client_launch_ok.post(
+        "/api/v1/operations",
+        json={"kit_id": _KIT_ID},
+        headers=_auth_headers(),
+    )
+
+    assert resp.status_code == 422
+
+
+def test_launch_with_both_targets_returns_422(client_launch_ok: TestClient) -> None:
+    """POST /api/v1/operations devuelve 422 si se proporcionan server_id y group_id a la vez."""
+    resp = client_launch_ok.post(
+        "/api/v1/operations",
+        json={"server_id": _SERVER_ID, "group_id": _GROUP_ID, "kit_id": _KIT_ID},
+        headers=_auth_headers(),
+    )
+
+    assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# T-10: POST /api/v1/operations — camino batch (group_id)
+# ---------------------------------------------------------------------------
+
+
+def test_launch_batch_returns_201_with_operations(client_batch_ok: TestClient) -> None:
+    """POST /api/v1/operations con group_id devuelve 201 con lista de operaciones."""
+    resp = client_batch_ok.post(
+        "/api/v1/operations",
+        json={"group_id": _GROUP_ID, "kit_id": _KIT_ID},
+        headers=_auth_headers(),
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert "operations" in data
+    assert len(data["operations"]) == 2
+    assert data["operations"][0]["operation_id"] == _OP_ID
+    assert data["operations"][1]["operation_id"] == "op-003"
+
+
+def test_launch_batch_group_not_found_returns_404(client_batch_group_not_found: TestClient) -> None:
+    """POST /api/v1/operations con group_id inexistente devuelve 404."""
+    resp = client_batch_group_not_found.post(
+        "/api/v1/operations",
+        json={"group_id": _GROUP_ID, "kit_id": _KIT_ID},
+        headers=_auth_headers(),
+    )
+
+    assert resp.status_code == 404

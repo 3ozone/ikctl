@@ -1186,12 +1186,14 @@ paths:
             schema:
               $ref: '#/components/schemas/OperationLaunch'
       responses:
-        '202':
-          description: Operación aceptada y encolada
+        '201':
+          description: Operación creada y encolada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Operation'
+                oneOf:
+                  - $ref: '#/components/schemas/Operation'
+                  - $ref: '#/components/schemas/BatchOperationResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -2021,7 +2023,7 @@ components:
     Operation:
       type: object
       properties:
-        id:
+        operation_id:
           type: string
           example: "op_1a2b3c4d"
         user_id:
@@ -2051,9 +2053,11 @@ components:
           type: string
           nullable: true
           description: "Solo se devuelve si debug_level es errors o full"
-        error:
-          type: string
-          nullable: true
+        backup_files:
+          type: array
+          items:
+            type: string
+          description: "Rutas de archivos de backup creados durante la operación"
         started_at:
           type: string
           format: date-time
@@ -2065,14 +2069,25 @@ components:
         created_at:
           type: string
           format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     OperationLaunch:
       type: object
-      required: [server_id, kit_id]
+      required: [kit_id]
+      description: >
+        Exactamente uno de `server_id` o `group_id` debe estar presente.
       properties:
         server_id:
           type: string
+          nullable: true
           example: "srv_1a2b3c4d"
+        group_id:
+          type: string
+          nullable: true
+          example: "grp_1a2b3c4d"
+          description: "Si se especifica, lanza la operación en todos los servidores del grupo (batch)"
         kit_id:
           type: string
           example: "kit_1a2b3c4d"
@@ -2106,6 +2121,15 @@ components:
           type: integer
         per_page:
           type: integer
+
+    BatchOperationResponse:
+      type: object
+      description: "Respuesta cuando se lanza una operación en batch sobre un grupo de servidores"
+      properties:
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Operation'
 
     # ── Pipelines ─────────────────────────────────────────────────────────────
     PipelineKit:

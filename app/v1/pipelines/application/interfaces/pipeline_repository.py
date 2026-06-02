@@ -31,3 +31,7 @@ class PipelineRepository(ABC):
     @abstractmethod
     async def has_active_executions(self, pipeline_id: str) -> bool:
         """Comprueba si el pipeline tiene ejecuciones activas (pending o in_progress)."""
+
+    @abstractmethod
+    async def find_by_id_no_ownership(self, pipeline_id: str) -> Optional[Pipeline]:
+        """Busca un pipeline por ID sin validar ownership (uso interno de tasks)."""

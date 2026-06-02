@@ -1,6 +1,6 @@
 # Tareas del Módulo Pipelines v1.0.0
 
-**Estado:** 69 tests GREEN — Fases 0–1 completadas ✅
+**Estado:** 108 tests GREEN — Fases 0–1 ✅, Fase 2 completa ✅ (T-07 a T-18)
 
 > Módulo que gestiona pipelines de configuración — ejecuciones de N kits × M servidores (o grupos)
 > en paralelo. Un pipeline genera automáticamente N×M operaciones individuales y agrega su estado.
@@ -31,42 +31,42 @@
 
 ### Ports (Interfaces)
 
-- [ ] **T-07**: Port `PipelineRepository` ABC en `application/interfaces/pipeline_repository.py` — métodos: `save(pipeline)`, `find_by_id(id, user_id)`, `find_all_by_user(user_id, page, per_page)`, `update(pipeline)`, `delete(id)`, `has_active_executions(pipeline_id)` — 0 tests
-- [ ] **T-08**: Port `PipelineExecutionRepository` ABC en `application/interfaces/pipeline_execution_repository.py` — métodos: `save(execution)`, `find_by_id(id)`, `find_by_pipeline_id(pipeline_id, page, per_page)`, `update(execution)`, `find_latest_by_pipeline(pipeline_id)` — 0 tests
-- [ ] **T-09**: Port `OperationLauncher` ABC en `application/interfaces/operation_launcher.py` — método: `launch(user_id, server_id, kit_id, values, sudo, debug_level)` → devuelve `operation_id: str`. Wrapper de `LaunchOperation` del módulo operations. Permite desacoplar pipelines de la implementación concreta de operations — 0 tests
-- [ ] **T-09.1**: Port `ServerRepository` (read-only, cross-module) en `application/interfaces/server_repository.py` — método: `find_by_id_internal(server_id)` y `find_servers_by_group(group_id)` — 0 tests
-- [ ] **T-09.2**: Port `OperationRepository` (read-only, cross-module) en `application/interfaces/operation_repository.py` — método: `find_by_id_internal(operation_id)` para polling del estado en `_ExecutePipelineOperations` — 0 tests
+- [x] **T-07**: Port `PipelineRepository` ABC en `application/interfaces/pipeline_repository.py` — métodos: `save(pipeline)`, `find_by_id(id, user_id)`, `find_all_by_user(user_id, page, per_page)`, `update(pipeline)`, `delete(id)`, `has_active_executions(pipeline_id)` — 0 tests
+- [x] **T-08**: Port `PipelineExecutionRepository` ABC en `application/interfaces/pipeline_execution_repository.py` — métodos: `save(execution)`, `find_by_id(id)`, `find_by_pipeline_id(pipeline_id, page, per_page)`, `update(execution)`, `find_latest_by_pipeline(pipeline_id)` — 0 tests
+- [x] **T-09**: Port `OperationLauncher` ABC en `application/interfaces/operation_launcher.py` — método: `launch(user_id, server_id, kit_id, values, sudo, debug_level)` → devuelve `operation_id: str`. Wrapper de `LaunchOperation` del módulo operations. Permite desacoplar pipelines de la implementación concreta de operations — 0 tests
+- [x] **T-09.1**: Port `ServerRepository` (read-only, cross-module) en `application/interfaces/server_repository.py` — métodos: `find_server_by_id_internal(server_id)`, `find_group_by_id_internal(group_id)`, `find_servers_by_ids(server_ids)` — 0 tests
+- [x] **T-09.2**: Port `OperationRepository` (read-only, cross-module) en `application/interfaces/operation_repository.py` — método: `find_by_id_internal(operation_id)` para polling del estado en `_ExecutePipelineOperations` — 0 tests
 
 ### Commands
 
-- [ ] **T-10**: Command `CreatePipeline(user_id, name, description, targets, kits, values, sudo, debug_level)` → devuelve `PipelineResult` — valida que ningún target es servidor `local` (RN-17), persiste Pipeline — 5 tests
-- [ ] **T-11**: Command `UpdatePipeline(user_id, pipeline_id, name, description, targets, kits, values, sudo, debug_level)` → devuelve `PipelineResult` — valida ownership (RN-01), valida sin ejecuciones activas (RN-16), valida no servidor local en targets (RN-17), persiste — 5 tests
-- [ ] **T-12**: Command `DeletePipeline(user_id, pipeline_id)` → `None` — valida ownership (RN-01), valida sin ejecuciones activas (RN-16 implícito), elimina — 4 tests
-- [ ] **T-13**: Command `LaunchPipeline(user_id, pipeline_id)` → devuelve `PipelineExecutionResult` — valida ownership (RN-01), expande targets (servers directos + servers de grupos), valida todos los kits usables (RN-09), crea `PipelineExecution pending`, persiste, encola `_ExecutePipelineOperations` async. Si algún kit del pipeline no está sincronizado, falla antes de encolar — 6 tests
+- [x] **T-10**: Command `CreatePipeline(user_id, name, description, targets, kits, values, sudo, debug_level)` → devuelve `PipelineResult` — valida que ningún target es servidor `local` (RN-17), persiste Pipeline — 5 tests ✅
+- [x] **T-11**: Command `UpdatePipeline(user_id, pipeline_id, name, description, targets, kits, values, sudo, debug_level)` → devuelve `PipelineResult` — valida ownership (RN-01), valida sin ejecuciones activas (RN-16), valida no servidor local en targets (RN-17), persiste — 5 tests ✅
+- [x] **T-12**: Command `DeletePipeline(user_id, pipeline_id)` → `None` — valida ownership (RN-01), valida sin ejecuciones activas (RN-16 implícito), elimina — 4 tests ✅
+- [x] **T-13**: Command `LaunchPipeline(user_id, pipeline_id)` → devuelve `PipelineExecutionResult` — valida ownership (RN-01), expande targets (servers directos + servers de grupos), valida todos los kits usables (RN-09), crea `PipelineExecution pending`, persiste, encola `_ExecutePipelineOperations` async. Si algún kit del pipeline no está sincronizado, falla antes de encolar — 6 tests ✅
 
 ### Queries
 
-- [ ] **T-14**: Query `GetPipeline(user_id, pipeline_id)` → devuelve `PipelineResult` — valida ownership — 2 tests
-- [ ] **T-15**: Query `ListPipelines(user_id, page, per_page)` → devuelve `PipelineListResult` paginado — 2 tests
-- [ ] **T-16**: Query `GetPipelineExecutions(user_id, pipeline_id, page, per_page)` → valida ownership, devuelve `PipelineExecutionListResult` paginado con resumen por ejecución (status, launched_at, finished_at, ops total/completadas/falladas) — 2 tests
-- [ ] **T-17**: Query `GetPipelineExecutionDetail(user_id, pipeline_id, execution_id)` → valida ownership del pipeline, devuelve `PipelineExecutionDetailResult` con snapshot + lista completa de operaciones individuales (server_id, kit_id, status, error) — 3 tests
+- [x] **T-14**: Query `GetPipeline(user_id, pipeline_id)` → devuelve `PipelineResult` — valida ownership — 2 tests ✅
+- [x] **T-15**: Query `ListPipelines(user_id, page, per_page)` → devuelve `PipelineListResult` paginado — 2 tests ✅
+- [x] **T-16**: Query `GetPipelineExecutions(user_id, pipeline_id, page, per_page)` → valida ownership, devuelve `PipelineExecutionListResult` paginado con resumen por ejecución (status, launched_at, finished_at, ops total/completadas/falladas) — 2 tests ✅
+- [x] **T-17**: Query `GetPipelineExecutionDetail(user_id, pipeline_id, execution_id)` → valida ownership del pipeline, devuelve `PipelineExecutionDetailResult` con snapshot + lista completa de operaciones individuales (server_id, kit_id, status, error) — 3 tests ✅
 
 ### Async Task (Application Layer)
 
-- [ ] **T-18**: Async task `_ExecutePipelineOperations(execution_id)` en `application/tasks/execute_pipeline_operations.py` — orquesta la ejecución del pipeline:
+- [x] **T-18**: Async task `_ExecutePipelineOperations(execution_id)` en `application/tasks/execute_pipeline_operations.py` — orquesta la ejecución del pipeline:
   1. Carga el pipeline y la execution via repositorios
   2. Expande targets: servers directos + todos los servers de grupos (via `ServerRepository.find_servers_by_group`)
   3. Para cada combinación (kit, server) → llama `OperationLauncher.launch(...)` (resolviendo `sudo` y `debug_level` via `pipeline.resolved_sudo_for(kit_id)` y `pipeline.resolved_debug_level_for(kit_id)`). Guarda todos los `operation_id` generados en `execution.operation_ids`
   4. Llama `execution.start()` + persiste
   5. Polling hasta que todas las ops sean terminales (polling cada 5s, timeout global 30min RNF-08)
   6. Llama `execution.mark_finished(operation_statuses)` con los estados finales de todas las ops (RN-20)
-  7. Persiste `execution` con estado final — 10 tests
+  7. Persiste `execution` con estado final — 10 tests ✅
 
 ### DTOs
 
-- [ ] **T-18.1**: Crear DTOs: `PipelineResult`, `PipelineListResult`, `PipelineExecutionResult`, `PipelineExecutionListResult`, `PipelineExecutionDetailResult` — sin tests directos
+- [x] **T-18.1**: Crear DTOs: `PipelineResult`, `PipelineListResult`, `PipelineExecutionResult`, `PipelineExecutionListResult`, `PipelineExecutionDetailResult` — sin tests directos ✅
 
-  **FASE 2 PENDIENTE: ~39 tests**
+  **FASE 2 COMPLETADA: 39 tests GREEN**
 
 ## Fase 3: Infrastructure (Repositories y Adapters)
 
@@ -135,7 +135,7 @@
 |------|--------|-------|-------------|
 | Fase 0 - Estructura | ✅ **COMPLETADA** | — | 100% |
 | Fase 1 - Domain Layer | ✅ **COMPLETADA** | 69 GREEN | 100% |
-| Fase 2 - Use Cases (CQRS) | ⏳ **PENDIENTE** | — | 0% |
+| Fase 2 - Use Cases (CQRS) | ✅ **COMPLETADA** | 39 GREEN (T-10 a T-18) | 100% |
 | Fase 3 - Infrastructure | ⏳ **PENDIENTE** | — | 0% |
 | Fase 4 - Presentation | ⏳ **PENDIENTE** | — | 0% |
 | Fase 5 - Tests | ⏳ **PENDIENTE** | — | 0% |
@@ -213,11 +213,11 @@ graph TD
 
 | RN | Descripción | Tareas | Estado |
 |----|-------------|--------|--------|
-| RN-01 | Ownership — solo pipelines propios | T-10, T-11, T-12, T-13, T-14, T-15, T-16, T-17 | ⏳ Pendiente |
-| RN-14 | `sudo` por kit prioridad sobre global | T-04 `resolved_sudo_for()`, T-18 | ⏳ Pendiente |
-| RN-15 | `debug_level` por kit prioridad sobre global | T-04 `resolved_debug_level_for()`, T-18 | ⏳ Pendiente |
-| RN-16 | No actualizar si hay ejecución activa | T-07 `has_active_executions()`, T-11 | ⏳ Pendiente |
-| RN-17 | Servidor local → no permitir en pipeline | T-10, T-11 | ⏳ Pendiente |
-| RN-20 | Estado agregado: all completed/failed/partial | T-05 `mark_finished()`, T-18 | ⏳ Pendiente |
+| RN-01 | Ownership — solo pipelines propios | T-10, T-11, T-12, T-13, T-14, T-15, T-16, T-17 | ✅ Implementado |
+| RN-14 | `sudo` por kit prioridad sobre global | T-04 `resolved_sudo_for()`, T-18 | ✅ Implementado |
+| RN-15 | `debug_level` por kit prioridad sobre global | T-04 `resolved_debug_level_for()`, T-18 | ✅ Implementado |
+| RN-16 | No actualizar si hay ejecución activa | T-07 `has_active_executions()`, T-11 | ✅ Implementado |
+| RN-17 | Servidor local → no permitir en pipeline | T-10, T-11 | ✅ Implementado |
+| RN-20 | Estado agregado: all completed/failed/partial | T-05 `mark_finished()`, T-18 | ✅ Implementado |
 
-**Estado RN: 0 implementadas, 6 pendientes**
+**Estado RN: 6 implementadas, 0 pendientes (application layer)**

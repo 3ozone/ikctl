@@ -19,3 +19,7 @@ class ServerNotActiveError(UseCaseException):
 
 class KitNotUsableError(UseCaseException):
     """El kit no está sincronizado o ha sido eliminado."""
+
+
+class GroupNotFoundError(UseCaseException):
+    """El grupo no existe o no pertenece al usuario."""

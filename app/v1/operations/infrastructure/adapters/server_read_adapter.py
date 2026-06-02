@@ -12,15 +12,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.v1.operations.application.interfaces.server_repository import (
     ServerRepository as OperationsServerRepository,
 )
+from app.v1.servers.domain.entities.group import Group
 from app.v1.servers.domain.entities.server import Server
+from app.v1.servers.infrastructure.persistence.models import (
+    GroupMemberModel,
+    GroupModel,
+    ServerModel,
+)
 from app.v1.servers.infrastructure.repositories.server_repository import (
     SQLAlchemyServerRepository,
 )
-from app.v1.servers.infrastructure.persistence.models import ServerModel
 
 
 class ServerReadAdapter(OperationsServerRepository):
-    """Lee servidores sin filtro de ownership para uso interno de tasks/use cases.
+    """Lee servidores y grupos sin filtro de ownership para uso interno de tasks/use cases.
 
     Delega la conversión model→entity al SQLAlchemyServerRepository para
     evitar duplicación de lógica de mapeo.
@@ -37,3 +42,37 @@ class ServerReadAdapter(OperationsServerRepository):
         )
         model = result.scalar_one_or_none()
         return self._inner.model_to_entity(model) if model else None
+
+    async def find_group_by_id_internal(self, group_id: str) -> Optional[Group]:
+        """Busca un grupo por id sin validar ownership."""
+        result = await self._session.execute(
+            select(GroupModel).where(GroupModel.id == group_id)
+        )
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        members_result = await self._session.execute(
+            select(GroupMemberModel.server_id).where(
+                GroupMemberModel.group_id == group_id
+            )
+        )
+        server_ids = list(members_result.scalars().all())
+        return Group(
+            id=model.id,
+            user_id=model.user_id,
+            name=model.name,
+            description=model.description,
+            server_ids=server_ids,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+        )
+
+    async def find_servers_by_ids(self, server_ids: list[str]) -> list[Server]:
+        """Devuelve los servidores cuyos ids están en la lista, sin filtro de ownership."""
+        if not server_ids:
+            return []
+        result = await self._session.execute(
+            select(ServerModel).where(ServerModel.id.in_(server_ids))
+        )
+        models = result.scalars().all()
+        return [self._inner.model_to_entity(m) for m in models]

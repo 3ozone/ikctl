@@ -27,6 +27,13 @@ class OperationResult:
 
 
 @dataclass(frozen=True)
+class BatchOperationResult:
+    """DTO de salida para una operación batch sobre un grupo de servidores."""
+
+    operations: list[OperationResult]
+
+
+@dataclass(frozen=True)
 class OperationListResult:
     """DTO de salida para listado paginado de operaciones."""
 

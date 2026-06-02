@@ -2,6 +2,7 @@
 
 Jerarquía y códigos HTTP:
 - OperationNotFoundError          → 404 Not Found
+- GroupNotFoundError              → 404 Not Found
 - InvalidOperationTransitionError → 409 Conflict  (dominio y aplicación)
 - OperationNotRestorableError     → 422 Unprocessable
 - OperationNotRetriableError      → 422 Unprocessable
@@ -13,6 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.v1.operations.application.exceptions import (
+    GroupNotFoundError,
     KitNotUsableError,
     OperationNotRestorableError,
     OperationNotRetriableError,
@@ -50,6 +52,21 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=404,
             content={"detail": str(exc) or "Operación no encontrada"},
+        )
+
+    @app.exception_handler(GroupNotFoundError)
+    async def group_not_found_handler(
+        request: Request, exc: GroupNotFoundError
+    ) -> JSONResponse:
+        """Convierte GroupNotFoundError a HTTP 404."""
+        logger.warning(
+            "group_not_found",
+            path=request.url.path,
+            error=str(exc),
+        )
+        return JSONResponse(
+            status_code=404,
+            content={"detail": str(exc) or "Grupo no encontrado"},
         )
 
     # ── 409 Conflict ──────────────────────────────────────────────────────────
