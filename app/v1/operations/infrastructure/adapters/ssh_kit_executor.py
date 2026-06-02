@@ -85,6 +85,7 @@ class SSHKitExecutor(RemoteKitExecutor):
         credential: Credential,
         debug_level: str,
         values: dict,
+        sudo: bool = False,
     ) -> tuple[str, tuple[str, ...]]:
         """Ejecuta el kit en el servidor remoto.
 
@@ -189,7 +190,7 @@ class SSHKitExecutor(RemoteKitExecutor):
                     await conn.execute(f"chmod +x {remote_script}", timeout=10)
 
                     rc, stdout, stderr = await conn.execute(
-                        remote_script, sudo=True, timeout=script_timeout
+                        remote_script, sudo=sudo, timeout=script_timeout
                     )
                     if stdout:
                         output_parts.append(stdout)

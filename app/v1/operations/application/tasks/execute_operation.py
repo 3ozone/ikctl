@@ -90,7 +90,8 @@ class ExecuteOperation:
                 kit=kit,
                 credential=credential,
                 debug_level=operation.debug_level,
-                values=kit.values,
+                values=operation.values,
+                sudo=operation.sudo,
             )
             operation.append_output(output)
             operation.set_backup_files(backup_files)

@@ -177,7 +177,7 @@ class TestSSHKitExecutorExecution:
         conn.execute = AsyncMock(return_value=(0, "content", ""))
         conn.file_exists = AsyncMock(return_value=True)
 
-        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80})
+        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80}, sudo=True)
 
         # Se debe haber ejecutado cp con sufijo .bak.ikctl para cada backup_file
         calls = [str(call) for call in conn.execute.call_args_list]
@@ -186,18 +186,31 @@ class TestSSHKitExecutorExecution:
 
     @pytest.mark.asyncio
     async def test_pipeline_executed_with_sudo(self):
-        """Paso 5: cada pipeline_file se ejecuta con sudo=True."""
+        """Paso 5: con sudo=True cada pipeline_file se ejecuta con sudo=True."""
         kit = make_kit(pipeline_files=("install.sh",))
         executor, _, _, _, _, conn = make_executor(kit=kit)
 
-        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80})
+        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80}, sudo=True)
 
-        # Verificar que alguna llamada a execute usó sudo=True
         sudo_calls = [
             call for call in conn.execute.call_args_list
             if call.kwargs.get("sudo") is True or (len(call.args) > 1 and call.args[1] is True)
         ]
         assert len(sudo_calls) > 0, "Ningún comando ejecutado con sudo=True"
+
+    @pytest.mark.asyncio
+    async def test_pipeline_executed_without_sudo(self):
+        """Paso 5: con sudo=False cada pipeline_file se ejecuta con sudo=False."""
+        kit = make_kit(pipeline_files=("install.sh",))
+        executor, _, _, _, _, conn = make_executor(kit=kit)
+
+        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80}, sudo=False)
+
+        sudo_calls = [
+            call for call in conn.execute.call_args_list
+            if call.kwargs.get("sudo") is True
+        ]
+        assert len(sudo_calls) == 0, "Algún comando se ejecutó con sudo=True cuando debería ser False"
 
     @pytest.mark.asyncio
     async def test_output_accumulated_from_pipeline(self):
@@ -206,7 +219,7 @@ class TestSSHKitExecutorExecution:
         executor, _, _, _, _, conn = make_executor(kit=kit)
         conn.execute = AsyncMock(return_value=(0, "NGINX installed successfully", ""))
 
-        output, _ = await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80})
+        output, _ = await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80}, sudo=True)
 
         assert "NGINX installed successfully" in output
 
@@ -216,7 +229,7 @@ class TestSSHKitExecutorExecution:
         kit = make_kit()
         executor, _, _, _, _, conn = make_executor(kit=kit)
 
-        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80})
+        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80}, sudo=True)
 
         cleanup_calls = [
             call for call in conn.execute.call_args_list
@@ -267,7 +280,7 @@ class TestSSHKitExecutorCache:
         git_client.clone_shallow = AsyncMock(side_effect=clone_with_exact_template)
         file_cache.find_hash = AsyncMock(return_value=expected_hash)
 
-        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80})
+        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80}, sudo=True)
 
         conn.upload_file.assert_not_called()
 
@@ -289,7 +302,7 @@ class TestSSHKitExecutorCache:
 
         git_client.clone_shallow = AsyncMock(side_effect=clone_known)
 
-        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80})
+        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80}, sudo=True)
 
         conn.upload_file.assert_called_once()
         file_cache.upsert.assert_called_once()
@@ -314,7 +327,7 @@ class TestSSHKitExecutorCache:
 
         git_client.clone_shallow = AsyncMock(side_effect=clone_known)
 
-        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80})
+        await executor.execute(make_server(), kit, make_ssh_credential(), "none", {"port": 80}, sudo=True)
 
         file_cache.invalidate_server_kit.assert_called_once_with("srv-1", "kit-1")
         conn.upload_file.assert_called_once()

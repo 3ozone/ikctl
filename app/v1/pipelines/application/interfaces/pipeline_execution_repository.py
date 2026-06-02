@@ -17,8 +17,12 @@ class PipelineExecutionRepository(ABC):
         """Busca una ejecución por ID (sin scope de usuario — se valida en use case)."""
 
     @abstractmethod
-    async def find_by_pipeline_id(self, pipeline_id: str, page: int, per_page: int) -> list[PipelineExecution]:
-        """Lista ejecuciones de un pipeline con paginación (1-based)."""
+    async def find_by_pipeline_id(self, pipeline_id: str, page: int, per_page: int) -> tuple[list[PipelineExecution], int]:
+        """Lista ejecuciones de un pipeline con paginación (1-based).
+
+        Returns:
+            Tupla (lista de ejecuciones, total de resultados).
+        """
 
     @abstractmethod
     async def update(self, execution: PipelineExecution) -> None:

@@ -17,8 +17,12 @@ class PipelineRepository(ABC):
         """Busca un pipeline por ID scoped al usuario propietario."""
 
     @abstractmethod
-    async def find_all_by_user(self, user_id: str, page: int, per_page: int) -> list[Pipeline]:
-        """Lista pipelines del usuario con paginación (1-based)."""
+    async def find_all_by_user(self, user_id: str, page: int, per_page: int) -> tuple[list[Pipeline], int]:
+        """Lista pipelines del usuario con paginación (1-based).
+
+        Returns:
+            Tupla (lista de pipelines, total de resultados).
+        """
 
     @abstractmethod
     async def update(self, pipeline: Pipeline) -> None:

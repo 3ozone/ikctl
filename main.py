@@ -42,6 +42,7 @@ from app.v1.auth.infrastructure.presentation.routes import router as auth_router
 from app.v1.servers.infrastructure.presentation.exception_handlers import register_exception_handlers as register_servers_exception_handlers
 from app.v1.kits.infrastructure.presentation.exception_handlers import register_exception_handlers as register_kits_exception_handlers
 from app.v1.operations.infrastructure.presentation.exception_handlers import register_exception_handlers as register_operations_exception_handlers
+from app.v1.pipelines.infrastructure.presentation.exception_handlers import register_exception_handlers as register_pipelines_exception_handlers
 from app.v1.kits.infrastructure.presentation.routes import router as kits_router
 from app.v1.operations.infrastructure.presentation.routes import router as operations_router
 from app.v1.servers.infrastructure.presentation.routes_credentials import router as credentials_router
@@ -88,6 +89,24 @@ from app.v1.operations.infrastructure.repositories.file_cache_repository import 
 from app.v1.operations.infrastructure.repositories.operation_repository import (
     SQLAlchemyOperationRepository,
 )
+from app.v1.pipelines.application.tasks.execute_pipeline_operations import ExecutePipelineOperations
+from app.v1.pipelines.infrastructure.adapters.kit_read_adapter import (
+    KitReadAdapter as PipelinesKitReadAdapter,
+)
+from app.v1.pipelines.infrastructure.adapters.operation_launcher_adapter import (
+    OperationLauncherAdapter,
+)
+from app.v1.pipelines.infrastructure.adapters.operation_read_adapter import OperationReadAdapter as PipelinesOperationReadAdapter
+from app.v1.pipelines.infrastructure.adapters.server_read_adapter import (
+    ServerReadAdapter as PipelinesServerReadAdapter,
+)
+from app.v1.pipelines.infrastructure.repositories.pipeline_execution_repository import (
+    SQLAlchemyPipelineExecutionRepository,
+)
+from app.v1.pipelines.infrastructure.repositories.pipeline_repository import (
+    SQLAlchemyPipelineRepository,
+)
+from app.v1.pipelines.infrastructure.presentation.routes import router as pipelines_router
 
 # ---------------------------------------------------------------------------
 # Singleton: Settings
@@ -380,6 +399,52 @@ async def lifespan(app: FastAPI):  # noqa: ANN001
             await task.execute(operation_id)
 
     app.state.restore_operation_fn = _restore_operation_fn
+
+    # ── pipelines: execute_pipeline_fn ────────────────────────────────
+    # Closure que crea sus propias sesiones (runs in BackgroundTasks).
+    async def _execute_pipeline_fn(execution_id: str) -> None:
+        async for session in get_db_session(_session_factory):
+            pipeline_repo = SQLAlchemyPipelineRepository(session)
+            execution_repo = SQLAlchemyPipelineExecutionRepository(session)
+            server_repo = PipelinesServerReadAdapter(session)
+            operation_repo = PipelinesOperationReadAdapter(session)
+            kit_repo = PipelinesKitReadAdapter(session)
+
+            # OperationLauncherAdapter envuelve LaunchOperation con sus deps
+            file_cache = SQLAlchemyFileCacheRepository(session)
+            git_repo_port = GitRepositoryReadAdapter(session)
+            credential_repo = OperationsCredentialReadAdapter(session, settings.ENCRYPTION_KEY)
+
+            ssh_executor = SSHKitExecutor(
+                git_client=git_python_client,
+                file_cache=file_cache,
+                git_repository_port=git_repo_port,
+                credential_repository=credential_repo,
+            )
+
+            # Para OperationLauncherAdapter necesitamos un LaunchOperation completo
+            from app.v1.operations.application.commands.launch_operation import LaunchOperation
+
+            launch_operation = LaunchOperation(
+                operation_repository=SQLAlchemyOperationRepository(session),
+                server_repository=ServerReadAdapter(session),
+                kit_repository=KitReadAdapter(session),
+                task_queue=None,  # No re-encola dentro de pipeline task
+                event_bus=event_bus,
+                execute_fn=_execute_operation_fn,
+            )
+            operation_launcher = OperationLauncherAdapter(launch_operation=launch_operation)
+
+            task = ExecutePipelineOperations(
+                pipeline_repository=pipeline_repo,
+                execution_repository=execution_repo,
+                server_repository=server_repo,
+                operation_launcher=operation_launcher,
+                operation_repository=operation_repo,
+            )
+            await task.execute(execution_id)
+
+    app.state.execute_pipeline_fn = _execute_pipeline_fn
     yield
     # Shutdown
     await _engine.dispose()
@@ -417,6 +482,7 @@ def create_app() -> FastAPI:
     register_servers_exception_handlers(app)
     register_kits_exception_handlers(app)
     register_operations_exception_handlers(app)
+    register_pipelines_exception_handlers(app)
 
     # Health checks
     @app.get("/")
@@ -451,6 +517,9 @@ def create_app() -> FastAPI:
 
     # T-28+ — routers operations
     app.include_router(operations_router)
+
+    # T-29+ — routers pipelines
+    app.include_router(pipelines_router)
 
     return app
 

@@ -32,5 +32,6 @@ class RemoteKitExecutor(ABC):
         credential: Credential,
         debug_level: str,
         values: dict,
+        sudo: bool = False,
     ) -> tuple[str, tuple[str, ...]]:
         """Ejecuta el kit en el servidor. Devuelve (output, backup_files)."""

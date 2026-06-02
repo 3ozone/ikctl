@@ -281,6 +281,116 @@ class TestExecuteOperationFailure:
         assert published.__class__.__name__ == "OperationFailed"
 
 
+class TestExecuteOperationSudo:
+    """Verifica que el flag sudo de la operación se propaga al executor."""
+
+    @pytest.mark.asyncio
+    async def test_execute_passes_sudo_true_to_executor(self):
+        op = Operation(
+            id="op-1",
+            user_id="user-1",
+            server_id="srv-1",
+            kit_id="kit-1",
+            values={},
+            sudo=True,
+            status=OperationStatus("pending"),
+            debug_level="none",
+            output="",
+            backup_files=(),
+            created_at=NOW,
+            updated_at=NOW,
+            started_at=None,
+            finished_at=None,
+        )
+        uc, _, _, _, _, remote_executor, _ = make_use_case(
+            operation=op, server=make_server(), kit=make_kit(), credential=make_credential()
+        )
+
+        await uc.execute("op-1")
+
+        _, kwargs = remote_executor.execute.call_args
+        assert kwargs["sudo"] is True
+
+    @pytest.mark.asyncio
+    async def test_execute_passes_sudo_false_to_executor(self):
+        op = Operation(
+            id="op-1",
+            user_id="user-1",
+            server_id="srv-1",
+            kit_id="kit-1",
+            values={},
+            sudo=False,
+            status=OperationStatus("pending"),
+            debug_level="none",
+            output="",
+            backup_files=(),
+            created_at=NOW,
+            updated_at=NOW,
+            started_at=None,
+            finished_at=None,
+        )
+        uc, _, _, _, _, remote_executor, _ = make_use_case(
+            operation=op, server=make_server(), kit=make_kit(), credential=make_credential()
+        )
+
+        await uc.execute("op-1")
+
+        _, kwargs = remote_executor.execute.call_args
+        assert kwargs["sudo"] is False
+
+
+class TestExecuteOperationValues:
+    """Verifica que el executor recibe operation.values, no kit.values."""
+
+    @pytest.mark.asyncio
+    async def test_execute_passes_operation_values_to_executor(self):
+        """Los valores del usuario (operation.values) deben llegar al executor,
+        no los defaults del kit (kit.values)."""
+        op = Operation(
+            id="op-1",
+            user_id="user-1",
+            server_id="srv-1",
+            kit_id="kit-1",
+            values={"port": "9090"},   # usuario sobreescribe el default 80
+            sudo=False,
+            status=OperationStatus("pending"),
+            debug_level="none",
+            output="",
+            backup_files=(),
+            created_at=NOW,
+            updated_at=NOW,
+            started_at=None,
+            finished_at=None,
+        )
+        uc, _, _, _, _, remote_executor, _ = make_use_case(
+            operation=op,
+            server=make_server(),
+            kit=make_kit(),          # kit.values = {"port": 80}
+            credential=make_credential(),
+        )
+
+        await uc.execute("op-1")
+
+        _, kwargs = remote_executor.execute.call_args
+        assert kwargs["values"] == {"port": "9090"}
+
+    @pytest.mark.asyncio
+    async def test_execute_passes_empty_operation_values_to_executor(self):
+        """Si operation.values está vacío se pasa vacío, sin caer al default del kit."""
+        op = make_operation()  # values={}
+        uc, _, _, _, _, remote_executor, _ = make_use_case(
+            operation=op,
+            server=make_server(),
+            kit=make_kit(),          # kit.values = {"port": 80}
+            credential=make_credential(),
+        )
+
+        await uc.execute("op-1")
+
+        _, kwargs = remote_executor.execute.call_args
+        assert kwargs["values"] == {}
+
+
 class TestExecuteOperationEdgeCases:
     """Casos borde de la tarea de ejecución."""
 
