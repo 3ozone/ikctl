@@ -45,6 +45,11 @@ class PipelineKitConfigRequest(BaseModel):
         examples=["none", "errors", "full"],
         description="Nivel de debug. None = heredar del pipeline.",
     )
+    values: dict = Field(
+        default_factory=dict,
+        examples=[{"command": "hostname"}],
+        description="Variables de plantilla específicas de este kit.",
+    )
 
 
 class CreatePipelineRequest(BaseModel):
@@ -126,6 +131,7 @@ class PipelineKitConfigResponse(BaseModel):
     kit_id: str
     sudo: Optional[bool]
     debug_level: Optional[str]
+    values: dict
 
 
 class PipelineResponse(BaseModel):

@@ -39,6 +39,7 @@ class SQLAlchemyPipelineRepository(PipelineRepository):
                     "kit_id": k.kit_id,
                     "sudo": k.sudo,
                     "debug_level": k.debug_level,
+                    "values": dict(k.values),
                 }
                 for k in pipeline.kits
             ],
@@ -76,6 +77,7 @@ class SQLAlchemyPipelineRepository(PipelineRepository):
                     kit_id=k["kit_id"],
                     sudo=k.get("sudo"),
                     debug_level=k.get("debug_level"),
+                    values=k.get("values", {}),
                 )
                 for k in kits_raw
             ],
@@ -115,6 +117,7 @@ class SQLAlchemyPipelineRepository(PipelineRepository):
                     "kit_id": k.kit_id,
                     "sudo": k.sudo,
                     "debug_level": k.debug_level,
+                    "values": dict(k.values),
                 }
                 for k in pipeline.kits
             ]

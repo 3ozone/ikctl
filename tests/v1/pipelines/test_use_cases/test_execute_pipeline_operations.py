@@ -382,3 +382,37 @@ class TestExecutePipelineOperationsEdgeCases:
         await task.execute("exec-x")
 
         execution_repo.update.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_timeout_marks_execution_failed(self):
+        """Si el polling excede el timeout, la ejecución se marca como failed."""
+        pipeline = make_pipeline()
+        execution = make_execution()
+        task, _, execution_repo, *_ = make_task(
+            pipeline=pipeline,
+            execution=execution,
+            server_lookup={"srv-1": make_server("srv-1")},
+            op_status_sequence=["pending"],  # Nunca llega a terminal
+        )
+
+        with patch("asyncio.sleep"):
+            await task.execute("exec-1", timeout_seconds=0)
+
+        assert execution.status.value == "failed"
+        execution_repo.update.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_on_launch_error_marks_execution_failed(self):
+        """Si falla el lanzamiento de una operación, la ejecución se marca como failed."""
+        pipeline = make_pipeline()
+        execution = make_execution()
+        task, *_, launcher, _ = make_task(
+            pipeline=pipeline,
+            execution=execution,
+            server_lookup={"srv-1": make_server("srv-1")},
+        )
+        launcher.launch.side_effect = RuntimeError("SSH connection failed")
+
+        await task.execute("exec-1")
+
+        assert execution.status.value == "failed"

@@ -469,3 +469,119 @@ def test_get_execution_detail_not_found_returns_404(client_detail_not_found: Tes
         headers=_auth_headers(),
     )
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Tests — per-kit values (bug fix)
+# ---------------------------------------------------------------------------
+
+
+class FakeCreateCaptureKits:
+    """Fake use case que captura los kits recibidos para poder inspeccionarlos."""
+
+    def __init__(self) -> None:
+        self.received_kits: list | None = None
+
+    async def execute(self, *, user_id, name, description, targets, kits, values, sudo, debug_level) -> PipelineResult:
+        self.received_kits = kits
+        return PipelineResult(
+            pipeline_id="pipe-v",
+            user_id=user_id,
+            name=name,
+            description=description,
+            targets=({"server_id": "srv-1"},),
+            kits=({"kit_id": "kit-1", "sudo": None, "debug_level": None, "values": {"command": "hostname"}},),
+            values={},
+            sudo=False,
+            debug_level="none",
+            created_at=_NOW,
+            updated_at=_NOW,
+        )
+
+
+class FakeUpdateCaptureKits:
+    """Fake use case de update que captura los kits recibidos."""
+
+    def __init__(self) -> None:
+        self.received_kits: list | None = None
+
+    async def execute(self, **kwargs) -> PipelineResult:
+        self.received_kits = kwargs.get("kits")
+        return PipelineResult(
+            pipeline_id="pipe-v",
+            user_id=_USER_ID,
+            name="Updated",
+            description=None,
+            targets=({"server_id": "srv-1"},),
+            kits=({"kit_id": "kit-1", "sudo": None, "debug_level": None, "values": {"command": "uptime"}},),
+            values={},
+            sudo=False,
+            debug_level="none",
+            created_at=_NOW,
+            updated_at=_NOW,
+        )
+
+
+def test_create_pipeline_kit_values_forwarded_to_use_case() -> None:
+    """POST con kits[i].values debe pasarlo al use case y devolverlo en la respuesta."""
+    fake = FakeCreateCaptureKits()
+    app.dependency_overrides[get_create_pipeline_uc] = lambda: fake
+    app.dependency_overrides[get_current_user_id] = lambda: _USER_ID
+    client = TestClient(app)
+
+    resp = client.post(
+        "/api/v1/pipelines",
+        json={
+            "name": "Pipeline",
+            "targets": [{"server_id": "srv-1"}],
+            "kits": [{"kit_id": "kit-1", "values": {"command": "hostname"}}],
+        },
+        headers=_auth_headers(),
+    )
+    app.dependency_overrides.clear()
+
+    assert resp.status_code == 201
+    data = resp.json()
+    # Respuesta incluye values del kit
+    assert data["kits"][0]["values"] == {"command": "hostname"}
+    # Use case recibió el kit con los values correctos
+    assert fake.received_kits is not None
+    assert fake.received_kits[0].values == {"command": "hostname"}
+
+
+def test_create_pipeline_response_always_includes_kit_values_field(client_create_ok: TestClient) -> None:
+    """La respuesta siempre incluye el campo values en cada kit (aunque sea vacío)."""
+    resp = client_create_ok.post(
+        "/api/v1/pipelines",
+        json={
+            "name": "Mi Pipeline",
+            "targets": [{"server_id": "srv-1"}],
+            "kits": [{"kit_id": "kit-1"}],
+        },
+        headers=_auth_headers(),
+    )
+    assert resp.status_code == 201
+    assert "values" in resp.json()["kits"][0]
+
+
+def test_update_pipeline_kit_values_forwarded_to_use_case() -> None:
+    """PUT con kits[i].values debe pasarlo al use case y devolverlo en la respuesta."""
+    fake = FakeUpdateCaptureKits()
+    app.dependency_overrides[get_update_pipeline_uc] = lambda: fake
+    app.dependency_overrides[get_current_user_id] = lambda: _USER_ID
+    client = TestClient(app)
+
+    resp = client.put(
+        "/api/v1/pipelines/pipe-001",
+        json={
+            "kits": [{"kit_id": "kit-1", "values": {"command": "uptime"}}],
+        },
+        headers=_auth_headers(),
+    )
+    app.dependency_overrides.clear()
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["kits"][0]["values"] == {"command": "uptime"}
+    assert fake.received_kits is not None
+    assert fake.received_kits[0].values == {"command": "uptime"}

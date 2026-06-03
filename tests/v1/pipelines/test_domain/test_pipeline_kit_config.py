@@ -68,3 +68,34 @@ class TestPipelineKitConfigInvalidDebugLevel:
         for level in ("none", "errors", "full"):
             config = PipelineKitConfig(kit_id="kit-001", debug_level=level)
             assert config.debug_level == level
+
+
+class TestPipelineKitConfigValues:
+    """PipelineKitConfig almacena valores por kit (variables de plantilla)."""
+
+    def test_values_defaults_to_empty_dict(self):
+        config = PipelineKitConfig(kit_id="kit-001")
+        assert config.values == {}
+
+    def test_values_stored_correctly(self):
+        config = PipelineKitConfig(kit_id="kit-001", values={"command": "hostname"})
+        assert config.values == {"command": "hostname"}
+
+    def test_values_multiple_entries(self):
+        config = PipelineKitConfig(kit_id="kit-001", values={"a": "1", "b": "2"})
+        assert config.values["a"] == "1"
+        assert config.values["b"] == "2"
+
+    def test_equal_configs_same_values(self):
+        c1 = PipelineKitConfig(kit_id="k1", values={"command": "hostname"})
+        c2 = PipelineKitConfig(kit_id="k1", values={"command": "hostname"})
+        assert c1 == c2
+
+    def test_unequal_configs_different_values(self):
+        c1 = PipelineKitConfig(kit_id="k1", values={"command": "hostname"})
+        c2 = PipelineKitConfig(kit_id="k1", values={"command": "uptime"})
+        assert c1 != c2
+
+    def test_minimal_config_has_empty_values(self):
+        config = PipelineKitConfig(kit_id="kit-001", sudo=True, debug_level="full")
+        assert config.values == {}

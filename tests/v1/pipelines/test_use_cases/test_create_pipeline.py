@@ -103,6 +103,23 @@ class TestCreatePipelineSuccess:
         assert len(result.pipeline_id) > 0
 
     @pytest.mark.asyncio
+    async def test_create_kit_values_preserved_in_result(self):
+        """El resultado de CreatePipeline incluye los values por kit."""
+        server = make_server("remote", "srv-1")
+        uc, _, _ = make_use_case(server_lookup={"srv-1": server})
+        kits_with_values = [PipelineKitConfig(kit_id="kit-1", values={"command": "hostname"})]
+
+        result = await uc.execute(
+            user_id="user-1",
+            name="Mi Pipeline",
+            description=None,
+            targets=DEFAULT_TARGETS,
+            kits=kits_with_values,
+        )
+
+        assert result.kits[0].get("values") == {"command": "hostname"}
+
+    @pytest.mark.asyncio
     async def test_create_calls_repository_save_once(self):
         server = make_server("remote", "srv-1")
         uc, pipeline_repo, _ = make_use_case(server_lookup={"srv-1": server})

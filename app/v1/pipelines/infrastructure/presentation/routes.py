@@ -74,7 +74,7 @@ def _to_pipeline_response(result: PipelineResult) -> PipelineResponse:
         description=result.description,
         targets=[PipelineTargetResponse(server_id=t["server_id"]) for t in result.targets],
         kits=[
-            PipelineKitConfigResponse(kit_id=k["kit_id"], sudo=k.get("sudo"), debug_level=k.get("debug_level"))
+            PipelineKitConfigResponse(kit_id=k["kit_id"], sudo=k.get("sudo"), debug_level=k.get("debug_level"), values=k.get("values", {}))
             for k in result.kits
         ],
         values=result.values,
@@ -110,7 +110,7 @@ async def create_pipeline(
     """
     targets = [PipelineTarget(server_id=t.server_id) for t in body.targets]
     kits = [
-        PipelineKitConfig(kit_id=k.kit_id, sudo=k.sudo, debug_level=k.debug_level)
+        PipelineKitConfig(kit_id=k.kit_id, sudo=k.sudo, debug_level=k.debug_level, values=k.values or {})
         for k in body.kits
     ]
     result = await use_case.execute(
@@ -216,7 +216,7 @@ async def update_pipeline(
     """
     targets = [PipelineTarget(server_id=t.server_id) for t in body.targets] if body.targets else None
     kits = (
-        [PipelineKitConfig(kit_id=k.kit_id, sudo=k.sudo, debug_level=k.debug_level) for k in body.kits]
+        [PipelineKitConfig(kit_id=k.kit_id, sudo=k.sudo, debug_level=k.debug_level, values=k.values or {}) for k in body.kits]
         if body.kits
         else None
     )

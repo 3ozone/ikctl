@@ -87,6 +87,7 @@ class CreatePipeline:
                     "kit_id": k.kit_id,
                     "sudo": k.sudo,
                     "debug_level": k.debug_level,
+                    "values": dict(k.values),
                 }
                 for k in pipeline.kits
             ),

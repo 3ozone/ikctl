@@ -74,6 +74,23 @@ async def test_save_and_find_by_id(pipeline_repository):
     assert found.kits[1].sudo is None
 
 
+async def test_save_and_find_kit_values_roundtrip(pipeline_repository):
+    """save persiste los values por kit y find_by_id los recupera correctamente."""
+    pipeline = make_pipeline(
+        kits=[
+            PipelineKitConfig(kit_id="kit-1", values={"command": "hostname"}),
+            PipelineKitConfig(kit_id="kit-2", values={}),
+        ],
+    )
+    await pipeline_repository.save(pipeline)
+
+    found = await pipeline_repository.find_by_id("pipe-1", "user-1")
+
+    assert found is not None
+    assert found.kits[0].values == {"command": "hostname"}
+    assert found.kits[1].values == {}
+
+
 async def test_find_by_id_wrong_user_returns_none(pipeline_repository):
     """find_by_id con user_id incorrecto devuelve None (ownership)."""
     await pipeline_repository.save(make_pipeline())
