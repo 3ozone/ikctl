@@ -184,8 +184,8 @@ class SQLAlchemyGroupRepository(GroupRepository):
     async def has_active_pipeline_executions(self, group_id: str) -> bool:
         """Comprueba si el grupo tiene ejecuciones de pipeline activas.
 
-        Consulta la tabla `pipeline_executions` por nombre ya que el módulo
-        pipelines aún no expone sus modelos SQLAlchemy.
+        Busca pipelines cuyo JSON `targets` contiene el group_id y luego
+        verifica si tienen ejecuciones en estado pending o running.
 
         Returns:
             True si tiene ejecuciones activas (pending/running), False si no.
@@ -196,12 +196,13 @@ class SQLAlchemyGroupRepository(GroupRepository):
         try:
             result = await self._session.execute(
                 text(
-                    "SELECT id FROM pipeline_executions "
-                    "WHERE group_id = :group_id "
-                    "AND status IN ('pending', 'running') "
+                    "SELECT pe.id FROM pipeline_executions pe "
+                    "INNER JOIN pipelines p ON p.id = pe.pipeline_id "
+                    "WHERE p.targets LIKE :target_pattern "
+                    "AND pe.status IN ('pending', 'running') "
                     "LIMIT 1"
                 ),
-                {"group_id": group_id},
+                {"target_pattern": f'%"server_id": "{group_id}"%'},
             )
             return result.scalar_one_or_none() is not None
         except Exception as exc:

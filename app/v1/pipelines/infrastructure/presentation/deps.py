@@ -205,14 +205,9 @@ def get_update_pipeline_uc(
 
 def get_delete_pipeline_uc(
     pipeline_repo: Annotated[SQLAlchemyPipelineRepository, Depends(get_pipeline_repository)],
-    execution_repo: Annotated[
-        SQLAlchemyPipelineExecutionRepository,
-        Depends(get_pipeline_execution_repository),
-    ],
 ) -> DeletePipeline:
     return DeletePipeline(
         pipeline_repository=pipeline_repo,
-        execution_repository=execution_repo,
     )
 
 

@@ -5,6 +5,7 @@ Verifica:
 - Persistencia de server_ids a través de la tabla group_members
 - Scoping por user_id: un usuario no accede a grupos de otro
 - has_active_pipeline_executions: retorna True/False según ejecuciones activas
+  (busca group_id en JSON targets de pipelines y luego ejecuciones activas)
 """
 from datetime import datetime, timezone
 
@@ -29,21 +30,41 @@ from app.v1.servers.infrastructure.repositories.group_repository import (
 async def db_engine():
     """Crea engine SQLite in-memory para tests.
 
-    Crea también la tabla `pipeline_executions` mínima que necesita
-    has_active_pipeline_executions (módulo pipelines aún sin modelos propios).
+    Crea también las tablas `pipelines` y `pipeline_executions` que necesita
+    has_active_pipeline_executions (busca group_id en JSON targets).
     """
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.execute(
             text(
-                "CREATE TABLE IF NOT EXISTS pipeline_executions ("
+                "CREATE TABLE IF NOT EXISTS pipelines ("
                 "id TEXT PRIMARY KEY, "
-                "group_id TEXT NOT NULL, "
                 "user_id TEXT NOT NULL, "
-                "status TEXT NOT NULL, "
+                "name TEXT NOT NULL, "
+                "description TEXT, "
+                "targets TEXT NOT NULL DEFAULT '[]', "
+                "kits TEXT NOT NULL DEFAULT '[]', "
+                "pipeline_values TEXT NOT NULL DEFAULT '{}', "
+                "sudo INTEGER NOT NULL DEFAULT 0, "
+                "debug_level TEXT NOT NULL DEFAULT 'none', "
                 "created_at TEXT NOT NULL, "
                 "updated_at TEXT NOT NULL"
+                ")"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS pipeline_executions ("
+                "id TEXT PRIMARY KEY, "
+                "pipeline_id TEXT NOT NULL, "
+                "user_id TEXT NOT NULL, "
+                "status TEXT NOT NULL, "
+                "operation_ids TEXT NOT NULL DEFAULT '[]', "
+                "snapshot TEXT NOT NULL DEFAULT '{}', "
+                "started_at TEXT, "
+                "finished_at TEXT, "
+                "created_at TEXT NOT NULL"
                 ")"
             )
         )
@@ -162,21 +183,45 @@ async def test_delete_group(group_repository):
 
 @pytest.mark.asyncio
 async def test_has_active_pipeline_executions(group_repository, db_session):
-    """Test 6: has_active_pipeline_executions retorna True/False según ejecuciones activas."""
+    """Test 6: has_active_pipeline_executions retorna True/False según ejecuciones activas.
+
+    Un grupo se considera en uso si aparece en el JSON targets de un pipeline
+    que tiene ejecuciones activas (pending/running).
+    """
     await group_repository.save(_make_group())
 
-    # Sin ejecuciones: debe retornar False
+    # Sin pipelines: debe retornar False
     assert await group_repository.has_active_pipeline_executions("grp-001") is False
 
-    # Insertar una ejecución activa directamente en BD
+    # Insertar un pipeline cuyo targets JSON contiene el group_id
+    import json
+    targets_json = json.dumps([{"server_id": "grp-001"}])
+    kits_json = json.dumps([{"kit_id": "kit-001", "sudo": None, "debug_level": None}])
+    await db_session.execute(
+        text(
+            "INSERT INTO pipelines "
+            "(id, user_id, name, description, targets, kits, pipeline_values, sudo, debug_level, created_at, updated_at) "
+            "VALUES ('pipe-001', 'user-001', 'Test Pipeline', 'desc', "
+            ":targets, :kits, '{}', 0, 'none', "
+            "datetime('now'), datetime('now'))"
+        ),
+        {"targets": targets_json, "kits": kits_json},
+    )
+
+    # Pipeline sin ejecuciones: debe retornar False
+    await db_session.commit()
+    assert await group_repository.has_active_pipeline_executions("grp-001") is False
+
+    # Insertar una ejecución activa vinculada al pipeline
     await db_session.execute(
         text(
             "INSERT INTO pipeline_executions "
-            "(id, group_id, user_id, status, created_at, updated_at) "
-            "VALUES ('exec-001', 'grp-001', 'user-001', 'running', "
-            "datetime('now'), datetime('now'))"
+            "(id, pipeline_id, user_id, status, created_at) "
+            "VALUES ('exec-001', 'pipe-001', 'user-001', 'running', "
+            "datetime('now'))"
         )
     )
     await db_session.commit()
 
+    # Pipeline con ejecución activa: debe retornar True
     assert await group_repository.has_active_pipeline_executions("grp-001") is True
