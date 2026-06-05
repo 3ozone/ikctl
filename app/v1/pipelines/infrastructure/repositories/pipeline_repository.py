@@ -33,7 +33,14 @@ class SQLAlchemyPipelineRepository(PipelineRepository):
             user_id=pipeline.user_id,
             name=pipeline.name,
             description=pipeline.description,
-            targets=[{"server_id": t.server_id} for t in pipeline.targets],
+            targets=[
+                {
+                    "server_id": t.server_id,
+                    "kit_ids": list(t.kit_ids) if t.kit_ids is not None else None,
+                    "values": dict(t.values),
+                }
+                for t in pipeline.targets
+            ],
             kits=[
                 {
                     "kit_id": k.kit_id,
@@ -71,7 +78,14 @@ class SQLAlchemyPipelineRepository(PipelineRepository):
             user_id=model.user_id,
             name=model.name,
             description=model.description,
-            targets=[PipelineTarget(server_id=t["server_id"]) for t in targets_raw],
+            targets=[
+                PipelineTarget(
+                    server_id=t["server_id"],
+                    kit_ids=tuple(t["kit_ids"]) if t.get("kit_ids") is not None else None,
+                    values=t.get("values", {}),
+                )
+                for t in targets_raw
+            ],
             kits=[
                 PipelineKitConfig(
                     kit_id=k["kit_id"],
@@ -111,7 +125,14 @@ class SQLAlchemyPipelineRepository(PipelineRepository):
                 return
             model.name = pipeline.name
             model.description = pipeline.description
-            model.targets = [{"server_id": t.server_id} for t in pipeline.targets]
+            model.targets = [
+                {
+                    "server_id": t.server_id,
+                    "kit_ids": list(t.kit_ids) if t.kit_ids is not None else None,
+                    "values": dict(t.values),
+                }
+                for t in pipeline.targets
+            ]
             model.kits = [
                 {
                     "kit_id": k.kit_id,

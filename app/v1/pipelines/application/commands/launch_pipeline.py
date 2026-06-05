@@ -89,19 +89,38 @@ class LaunchPipeline:
         )
 
     async def _validate_kits_usable(self, pipeline: Pipeline) -> None:
-        """RN-09: todos los kits deben estar sincronizados y no eliminados."""
+        """RN-09: todos los kits deben estar sincronizados y no eliminados.
+        R7: si target tiene kit_ids, deben existir en pipeline.kits.
+        """
         for kit_config in pipeline.kits:
             kit = await self._kit_repo.find_by_id_internal(kit_config.kit_id)
             if kit is None or not kit.is_usable():
                 raise PipelineNotLaunchableError(
                     f"El kit '{kit_config.kit_id}' no está disponible o no está sincronizado."
                 )
+        # R7: validar que kit_ids de cada target existan en pipeline.kits
+        pipeline_kit_ids = {kc.kit_id for kc in pipeline.kits}
+        for target in pipeline.targets:
+            if target.kit_ids is not None:
+                for kid in target.kit_ids:
+                    if kid not in pipeline_kit_ids:
+                        raise PipelineNotLaunchableError(
+                            f"Kit '{kid}' en target '{target.server_id}' "
+                            f"no existe en pipeline.kits."
+                        )
 
     @staticmethod
     def _build_snapshot(pipeline: Pipeline) -> dict:
         """RN-21: captura inmutable de la config del pipeline en el momento del lanzamiento."""
         return {
-            "targets": [{"server_id": t.server_id} for t in pipeline.targets],
+            "targets": [
+                {
+                    "server_id": t.server_id,
+                    "kit_ids": list(t.kit_ids) if t.kit_ids is not None else None,
+                    "values": dict(t.values),
+                }
+                for t in pipeline.targets
+            ],
             "kits": [
                 {
                     "kit_id": k.kit_id,

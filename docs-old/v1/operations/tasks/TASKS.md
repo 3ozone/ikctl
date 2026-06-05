@@ -224,4 +224,56 @@ graph TD
 | RN-12 | Retry solo para `failed`/`cancelled_unsafe` | T-02 `is_retriable()`, T-13 | ✅ Implementado |
 | RN-13 | Herencia `debug_level`: op > manifest > default `none` | T-10 | ✅ Implementado |
 
-**Estado RN: 7/7 implementadas**
+**Estado RN v1: 7/7 implementadas**
+
+---
+
+## v2.0.0 — Mejoras de Operations
+
+**Estado:** Pendiente
+
+> Mejoras identificadas tras la v1.0.0: cancelación de operaciones en curso,
+> streaming de output, y soporte para cancelación desde pipelines.
+
+### Fase 7: Cancelación de Operaciones en Curso
+
+- [ ] **T-43**: Command `CancelOperation` — transición `in_progress → cancelled`
+  - Endpoint: `POST /api/v1/operations/{id}/cancel`
+  - Si la operación está ejecutando SSH, enviar señal de cancelación al proceso
+  - Si está `pending`, marcar directamente como `cancelled`
+  - Publicar evento `OperationCancelled`
+  - Solo el propietario puede cancelar (RN-01)
+- [ ] **T-44**: Cancelación desde PipelineExecution — cuando se cancela un pipeline,
+  las operaciones pendientes/en curso deben recibir la señal de cancelación
+  - Nuevo port `OperationCanceller` en `application/interfaces/`
+  - Adaptador `OperationCancellerAdapter` que delega al módulo operations
+  - `ExecutePipelineOperations` lo usa en el timeout y en la cancelación del pipeline
+
+### Fase 8: Streaming de Output en Tiempo Real
+
+- [ ] **T-45**: Añadir campo `output` parcial en respuestas de operación — el output se actualiza
+  incrementalmente durante la ejecución SSH, no solo al final
+  - Modificar `SSHKitExecutor` para ir escribiendo `output` en la BD durante la ejecución
+  - Añadir `operation.update_output(partial_output)` que se llame tras cada paso
+  - El frontend puede hacer polling del endpoint de detalle para ver progreso
+- [ ] **T-46**: Modificar `ExecuteOperation` para hacer `update()` intermedios
+  - Después de cada paso (snapshot, clone, render, transfer, execute, cleanup):
+    llamar `operation_repo.update()` para persistir el output parcial
+  - Esto permite que el polling del pipeline vea progreso real
+
+### Dependencias v2
+
+```mermaid
+graph TD
+    T43[T-43: CancelOperation] --> T44[T-44: Pipeline cancela ops]
+    T45[T-45: Output parcial en BD] --> T46[T-46: ExecuteOperation update intermedio]
+    PipelinesCancel["Pipelines T-45: Cancelación"] --> T44
+```
+
+### Estadísticas v2
+
+- **Total tareas v2**: 4 (T-43 a T-46)
+- **Fases**: 2 (7 a 8)
+- **Nuevos endpoints**: 1 (cancel operation)
+- **Nuevos commands**: 1 (CancelOperation)
+- **Nuevos ports**: 1 (OperationCanceller)

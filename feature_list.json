@@ -1,0 +1,272 @@
+{
+    "project": "ikctl",
+    "description": "API REST para gestión de instalaciones remotas de aplicaciones en servidores vía SSH.",
+    "version": "2.0.0",
+    "rules": {
+        "one_feature_at_a_time": true,
+        "require_tests_to_close": true,
+        "require_approved_spec_to_implement": true,
+        "valid_status": [
+            "pending",
+            "spec_ready",
+            "in_progress",
+            "done",
+            "blocked"
+        ],
+        "sdd_required_when": "feature has \"sdd\": true"
+    },
+    "features": [
+        {
+            "id": 1,
+            "name": "auth",
+            "title": "Autenticación y autorización (JWT + OAuth2 GitHub + 2FA)",
+            "description": "Sistema de autenticación JWT con usuarios en BD. Roles admin/viewer. 2FA TOTP opcional. OAuth2 con GitHub. Registro, login, refresh, password reset, verificación de email.",
+            "category": "core",
+            "enabled": true,
+            "acceptance": [
+                "POST /api/v1/auth/register crea un usuario",
+                "POST /api/v1/auth/login devuelve access_token JWT con role en claims",
+                "Todos los endpoints devuelven 401 si no hay token válido",
+                "Endpoints de escritura devuelven 403 si el rol es viewer",
+                "2FA TOTP opcional con pyotp",
+                "OAuth2 con GitHub disponible"
+            ],
+            "sdd": false,
+            "status": "done"
+        },
+        {
+            "id": 2,
+            "name": "servers",
+            "title": "Servidores, credenciales y grupos",
+            "description": "CRUD de servidores remotos (SSH) y locales. Credenciales cifradas (Fernet). Grupos de servidores. Health checks y ejecución ad-hoc de comandos.",
+            "category": "core",
+            "enabled": true,
+            "acceptance": [
+                "CRUD completo de servidores remotos y locales",
+                "Credenciales cifradas en reposo con Fernet",
+                "Grupos de servidores con add/remove de miembros",
+                "Health check de servidores SSH",
+                "Ejecución ad-hoc de comandos en servidores remotos"
+            ],
+            "sdd": false,
+            "status": "done"
+        },
+        {
+            "id": 3,
+            "name": "kits",
+            "title": "Repositorios Git y kits de configuración",
+            "description": "Gestión de repositorios Git como fuente de kits. Sincronización shallow clone. Manifest ikctl.yaml con valores, archivos y dependencias. Kits read-only gestionados por sync.",
+            "category": "core",
+            "enabled": true,
+            "acceptance": [
+                "CRUD de repositorios Git (públicos y privados con credenciales)",
+                "Sincronización: shallow clone + parseo de ikctl.yaml raíz y por kit",
+                "Kits read-only: creados/actualizados/soft-deleted por sync",
+                "Validación de manifest: pipeline_files subset de upload_files",
+                "Eventos: RepositoryRegistered, RepositorySynced, KitDiscovered"
+            ],
+            "sdd": false,
+            "status": "done"
+        },
+        {
+            "id": 4,
+            "name": "operations",
+            "title": "Ejecución de operaciones SSH asíncronas",
+            "description": "Lanza y gestiona operaciones SSH/locales asíncronas. Ejecución de kits en servidores con 6 pasos: snapshot → git clone → render Jinja2 → transfer SFTP con caché SHA-256 → ejecución pipeline → limpieza. State machine de OperationStatus.",
+            "category": "core",
+            "enabled": true,
+            "acceptance": [
+                "Lanzar operación en servidor remoto o local con kit y valores",
+                "State machine: pending → in_progress → completed/failed/cancelled/cancelled_unsafe",
+                "Cancelación de operaciones pendientes y en curso",
+                "Restore de backup (.bak.ikctl) para operaciones fallidas",
+                "Retry de operaciones fallidas",
+                "Caché SHA-256 de archivos transferidos",
+                "Debug level filtrable: none/errors/full"
+            ],
+            "sdd": false,
+            "status": "done"
+        },
+        {
+            "id": 5,
+            "name": "pipelines",
+            "title": "Orquestación de pipelines (N kits × M servidores)",
+            "description": "Pipelines que ejecutan N kits en M servidores (o grupos) en paralelo. Genera N×M operaciones individuales. Snapshot inmutable de config al lanzar. Polling de estado con timeout configurable.",
+            "category": "core",
+            "enabled": true,
+            "acceptance": [
+                "CRUD de pipelines con targets (server/group) y kits",
+                "Lanzar pipeline: crea PipelineExecution y N×M operaciones",
+                "Ownership: solo el propietario puede gestionar sus pipelines",
+                "No servidores locales en pipelines",
+                "No actualizar/eliminar pipeline con ejecuciones activas",
+                "Snapshot inmutable de config al lanzar (RN-21)",
+                "Estado agregado: all completed/failed/partial (RN-20)",
+                "sudo y debug_level por kit con prioridad sobre global",
+                "Timeout configurable (default 30 min)",
+                "Historial de ejecuciones con detalle de operaciones individuales"
+            ],
+            "sdd": false,
+            "status": "done"
+        },
+        {
+            "id": 6,
+            "name": "pipelines_cancel_timeout",
+            "title": "Pipelines: Cancelación y timeout efectivo",
+            "description": "Cancelar una PipelineExecution en curso. Timeout efectivo que marca operaciones pendientes como cancelled_unsafe cuando se supera el límite global.",
+            "category": "pipelines",
+            "enabled": true,
+            "acceptance": [
+                "POST /api/v1/pipelines/{id}/executions/{exec_id}/cancel cancela la ejecución",
+                "Transición in_progress → cancelled en PipelineExecution",
+                "Operaciones pendientes se marcan como cancelled",
+                "Publicar evento PipelineExecutionCancelled",
+                "Timeout efectivo: operaciones pendientes → cancelled_unsafe al superar timeout global"
+            ],
+"sdd": true,
+            "status": "done"
+        },
+        {
+            "id": 7,
+            "name": "pipelines_parallel_exec",
+            "title": "Pipelines: Ejecución paralela y concurrencia",
+            "description": "Reemplazar ejecución secuencial de operaciones por asyncio.gather. Límite de concurrencia configurable con Semaphore.",
+            "category": "pipelines",
+            "enabled": true,
+            "acceptance": [
+                "Ejecución paralela de operaciones con asyncio.gather",
+                "Semaphore configurable (default: 10) para limitar conexiones SSH simultáneas",
+                "Soportar mínimo 50 operaciones SSH concurrentes (RNF-06)"
+            ],
+            "sdd": true,
+            "status": "done"
+        },
+        {
+            "id": 8,
+            "name": "pipelines_target_roles",
+            "title": "Pipelines: Kits y valores específicos por target",
+            "description": "Extender PipelineTarget con kit_ids y values opcionales. Permite asignar kits diferentes a diferentes grupos de servidores.",
+            "category": "pipelines",
+            "enabled": true,
+            "acceptance": [
+                "PipelineTarget permite kit_ids opcionales (si None, usa kits globales)",
+                "PipelineTarget permite values opcionales por target",
+                "LaunchPipeline captura kit_ids y values en el snapshot",
+                "ExecutePipelineOperations resuelve kits por target",
+                "Schemas Pydantic y endpoints actualizados",
+                "Migración Alembic para nueva columna JSON en pipelines.targets"
+            ],
+            "sdd": true,
+            "status": "done"
+        },
+        {
+            "id": 9,
+            "name": "pipelines_phases",
+            "title": "Pipelines: Fases de ejecución (dependencias entre targets)",
+            "description": "Añadir phase opcional a PipelineTarget. Ejecutar por fases secuenciales. Permite orquestar: primero masters (phase=1), luego workers (phase=2).",
+            "category": "pipelines",
+            "enabled": true,
+            "acceptance": [
+                "PipelineTarget permite phase opcional (entero, default: 1)",
+                "ExecutePipelineOperations ejecuta por fases secuenciales",
+                "Si una fase falla completamente, las siguientes no se ejecutan",
+                "Snapshot captura la fase de cada target"
+            ],
+            "sdd": true,
+            "status": "pending"
+        },
+        {
+            "id": 10,
+            "name": "pipelines_retry_events",
+            "title": "Pipelines: Reintentos y eventos de dominio",
+            "description": "Reintentar operaciones fallidas de una PipelineExecution. Publicar eventos de dominio al completar/fallar/cancelar. Progreso en tiempo real con contadores.",
+            "category": "pipelines",
+            "enabled": true,
+            "acceptance": [
+                "POST /api/v1/pipelines/{id}/executions/{exec_id}/retry reintenta operaciones fallidas",
+                "Reutiliza el snapshot de la ejecución original",
+                "Eventos: PipelineExecutionCompleted, PipelineExecutionFailed, PipelineExecutionCancelled",
+                "Campos completed_count, failed_count, total_count en PipelineExecution"
+            ],
+            "sdd": true,
+            "status": "pending"
+        },
+        {
+            "id": 11,
+            "name": "pipelines_kit_snapshot",
+            "title": "Pipelines: Snapshot de versión del kit",
+            "description": "Capturar versión y hash del kit en el snapshot al lanzar un pipeline. Permite trazabilidad exacta de qué versión se ejecutó.",
+            "category": "pipelines",
+            "enabled": true,
+            "acceptance": [
+                "Snapshot captura kit_version y kit_last_commit_sha por cada kit",
+                "Kit.get_snapshot_data() devuelve los datos necesarios",
+                "Ejecución histórica refleja la versión exacta usada"
+            ],
+            "sdd": true,
+            "status": "pending"
+        },
+        {
+            "id": 12,
+            "name": "pipelines_target_values",
+            "title": "Pipelines: Variables por target",
+            "description": "Soportar values por target (además de por kit). Permite --node-type=master para targets del grupo masters.",
+            "category": "pipelines",
+            "enabled": true,
+            "acceptance": [
+                "Values por target se mergean con los globales del pipeline y los del kit",
+                "Snapshot captura los values por target",
+                "ExecutePipelineOperations pasa los values resueltos a cada operación"
+            ],
+            "sdd": true,
+            "status": "pending"
+        },
+        {
+            "id": 13,
+            "name": "operations_cancel_in_progress",
+            "title": "Operations: Cancelación de operaciones en curso",
+            "description": "Command CancelOperation con transición in_progress → cancelled. Señal de cancelación al proceso SSH. Solo el propietario puede cancelar.",
+            "category": "operations",
+            "enabled": true,
+            "acceptance": [
+                "POST /api/v1/operations/{id}/cancel cancela operación en curso",
+                "Si pending → cancelled directo",
+                "Si in_progress → señal de cancelación al proceso SSH",
+                "Publicar evento OperationCancelled",
+                "Solo el propietario puede cancelar (RN-01)"
+            ],
+            "sdd": true,
+            "status": "pending"
+        },
+        {
+            "id": 14,
+            "name": "operations_output_streaming",
+            "title": "Operations: Streaming de output en tiempo real",
+            "description": "Output parcial disponible durante la ejecución SSH. Cada paso actualiza la operación en BD. Permite polling de progreso.",
+            "category": "operations",
+            "enabled": true,
+            "acceptance": [
+                "Campo output se actualiza incrementalmente durante ejecución SSH",
+                "operation.update_output(partial_output) llamado tras cada paso",
+                "Polling del pipeline ve progreso real de operaciones"
+            ],
+            "sdd": true,
+            "status": "pending"
+        },
+        {
+            "id": 15,
+            "name": "kits_snapshot_version",
+            "title": "Kits: Snapshot de versión del kit para pipelines",
+            "description": "Añadir método Kit.get_snapshot_data() que devuelve kit_id, version y last_commit_sha. Inyectar CredentialRepository en SyncRepository para repos privados.",
+            "category": "kits",
+            "enabled": true,
+            "acceptance": [
+                "Kit.get_snapshot_data() devuelve {kit_id, version, last_commit_sha}",
+                "CredentialRepository inyectado en SyncRepository para clonar repos privados",
+                "Tests de integración con repos privados (git_https y git_ssh)"
+            ],
+            "sdd": true,
+            "status": "pending"
+        }
+    ]
+}

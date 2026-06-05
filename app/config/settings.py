@@ -50,5 +50,8 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://0.0.0.0:3000"]
 
+    # Pipelines
+    PIPELINE_MAX_CONCURRENCY: int = 10
+
     # Cifrado AES-256-GCM para credenciales en reposo (exactamente 32 bytes ASCII)
     ENCRYPTION_KEY: str = "dev-only-key-change-in-prod-0000"

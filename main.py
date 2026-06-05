@@ -422,6 +422,9 @@ async def lifespan(app: FastAPI):  # noqa: ANN001
                 credential_repository=credential_repo,
             )
 
+            async def _commit_session():
+                await session.commit()
+
             # Para OperationLauncherAdapter necesitamos un LaunchOperation completo
             from app.v1.operations.application.commands.launch_operation import LaunchOperation
 
@@ -432,8 +435,18 @@ async def lifespan(app: FastAPI):  # noqa: ANN001
                 task_queue=None,  # No re-encola dentro de pipeline task
                 event_bus=event_bus,
                 execute_fn=_execute_operation_fn,
+                commit_fn=_commit_session,
             )
             operation_launcher = OperationLauncherAdapter(launch_operation=launch_operation)
+
+            from app.v1.operations.application.commands.cancel_operation import CancelOperation
+            from app.v1.pipelines.infrastructure.adapters.operation_cancel_adapter import OperationCancelAdapter
+
+            cancel_operation = CancelOperation(
+                operation_repository=SQLAlchemyOperationRepository(session),
+                event_bus=event_bus,
+            )
+            operation_cancel_port = OperationCancelAdapter(cancel_operation=cancel_operation)
 
             task = ExecutePipelineOperations(
                 pipeline_repository=pipeline_repo,
@@ -441,6 +454,9 @@ async def lifespan(app: FastAPI):  # noqa: ANN001
                 server_repository=server_repo,
                 operation_launcher=operation_launcher,
                 operation_repository=operation_repo,
+                operation_cancel_port=operation_cancel_port,
+                commit_fn=_commit_session,
+                max_concurrency=settings.PIPELINE_MAX_CONCURRENCY,
             )
             await task.execute(execution_id)
 

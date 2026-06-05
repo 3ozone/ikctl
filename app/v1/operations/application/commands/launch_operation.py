@@ -35,6 +35,7 @@ class LaunchOperation:
         task_queue: TaskQueue,
         event_bus: EventBus,
         execute_fn=None,
+        commit_fn=None,
     ) -> None:
         self._operation_repo = operation_repository
         self._server_repo = server_repository
@@ -42,6 +43,7 @@ class LaunchOperation:
         self._task_queue = task_queue
         self._event_bus = event_bus
         self._execute_fn = execute_fn or _execute_operation_placeholder
+        self._commit_fn = commit_fn
 
     async def execute(
         self,
@@ -133,10 +135,15 @@ class LaunchOperation:
             )
         )
 
-        await self._task_queue.enqueue(
-            self._execute_fn,
-            operation_id,
-        )
+        if self._task_queue is not None:
+            await self._task_queue.enqueue(
+                self._execute_fn,
+                operation_id,
+            )
+        else:
+            if self._commit_fn:
+                await self._commit_fn()
+            await self._execute_fn(operation_id)
 
         return OperationResult(
             operation_id=operation.id,

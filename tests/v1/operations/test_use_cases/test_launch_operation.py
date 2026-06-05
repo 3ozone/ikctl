@@ -187,3 +187,36 @@ class TestLaunchOperationErrors:
         uc, *_ = make_use_case(server=server, kit=kit)
         with pytest.raises(KitNotUsableError):
             await uc.execute(user_id="user-1", server_id="srv-1", kit_id="kit-1", debug_level=None)
+
+
+class TestLaunchOperationWithoutTaskQueue:
+    """Cuando task_queue es None (ej. dentro de pipeline task),
+    LaunchOperation debe llamar execute_fn directamente."""
+
+    @pytest.mark.asyncio
+    async def test_calls_execute_fn_directly_when_task_queue_is_none(self):
+        server = make_server(status="active")
+        kit = make_kit(synced=True)
+        operation_repo = AsyncMock()
+        server_repo = AsyncMock()
+        kit_repo = AsyncMock()
+        event_bus = AsyncMock()
+        execute_fn = AsyncMock()
+        server_repo.find_by_id_internal.return_value = server
+        kit_repo.find_by_id_internal.return_value = kit
+
+        uc = LaunchOperation(
+            operation_repository=operation_repo,
+            server_repository=server_repo,
+            kit_repository=kit_repo,
+            task_queue=None,
+            event_bus=event_bus,
+            execute_fn=execute_fn,
+        )
+
+        result = await uc.execute(
+            user_id="user-1", server_id="srv-1", kit_id="kit-1", debug_level=None
+        )
+
+        execute_fn.assert_awaited_once()
+        assert execute_fn.call_args[0][0] == result.operation_id

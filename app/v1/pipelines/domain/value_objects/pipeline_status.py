@@ -11,12 +11,14 @@ _VALID_VALUES = frozenset({
     "completed",
     "failed",
     "partial",
+    "cancelled",
 })
 
 _TERMINAL_STATES = frozenset({
     "completed",
     "failed",
     "partial",
+    "cancelled",
 })
 
 
@@ -30,6 +32,7 @@ class PipelineStatus:
         - completed    → todas las operaciones completaron con éxito (terminal)
         - failed       → todas las operaciones fallaron (terminal)
         - partial      → al menos una completó y al menos una falló (terminal)
+        - cancelled    → cancelada por el usuario o por timeout (terminal)
     """
 
     value: str
@@ -47,5 +50,5 @@ class PipelineStatus:
         return _TERMINAL_STATES
 
     def is_terminal(self) -> bool:
-        """True si el estado es terminal (completed, failed, partial)."""
+        """True si el estado es terminal (completed, failed, partial, cancelled)."""
         return self.value in _TERMINAL_STATES

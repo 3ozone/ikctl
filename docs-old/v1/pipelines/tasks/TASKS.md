@@ -224,4 +224,111 @@ graph TD
 | RN-20 | Estado agregado: all completed/failed/partial | T-05 `mark_finished()`, T-18 | ✅ Implementado |
 | RN-21 | Snapshot inmutable de config al lanzar | T-13 `LaunchPipeline._build_snapshot()` | ✅ Implementado |
 
-**Estado RN: 7 implementadas, 0 pendientes**
+**Estado RN v1: 7 implementadas, 0 pendientes**
+
+---
+
+## v2.0.0 — Mejoras de Pipelines
+
+**Estado:** Pendiente
+
+> Mejoras identificadas tras la v1.0.0: cancelación, paralelización, roles por target,
+> concurrencia, reintentos, eventos, snapshots de kits y fases de ejecución.
+
+### Fase 7: Cancelación y Timeout Efectivo
+
+- [ ] **T-45**: Cancelar PipelineExecution — `CancelPipelineExecution` command
+  - `POST /api/v1/pipelines/{id}/executions/{exec_id}/cancel`
+  - Transición `in_progress → cancelled` en PipelineExecution
+  - Cancelar operaciones pendientes (marcar como `cancelled`)
+  - Publicar evento `PipelineExecutionCancelled`
+- [ ] **T-46**: Timeout efectivo — al superar el timeout global (RNF-08), marcar operaciones pendientes como `cancelled_unsafe`
+  - Actualmente el timeout marca la ejecución como `failed` pero las operaciones SSH siguen corriendo
+  - Necesita mecanismo para cancelar operaciones individuales en el módulo operations
+
+### Fase 8: Ejecución Paralela y Concurrencia
+
+- [ ] **T-47**: Ejecución paralela de operaciones — reemplazar `for server_id... for kit_config...` secuencial por `asyncio.gather`
+  - `ExecutePipelineOperations._launch_operations()` lanza todas las operaciones en paralelo
+  - Actualmente se lanzan una a una (secuencial)
+- [ ] **T-48**: Límite de concurrencia configurable — `Semaphore(max_concurrent)` en `ExecutePipelineOperations`
+  - RNF-06: soportar mínimo 50 operaciones SSH concurrentes
+  - Parámetro configurable (default: 10) para limitar el número de conexiones SSH simultáneas
+  - Evitar saturar servidores con demasiadas operaciones en paralelo
+
+### Fase 9: Roles por Target (kits específicos por grupo de servidores)
+
+- [ ] **T-49**: Extender `PipelineTarget` con `kit_ids` y `values` opcionales
+  - Cambio de modelo: `PipelineTarget(server_id, kit_ids?, values?)`
+  - Si `kit_ids` es None → usa los kits globales del pipeline (comportamiento actual)
+  - Si `kit_ids` tiene valores → solo esos kits se aplican a ese target
+  - Permite: "masters con kit-1, workers con kit-2"
+- [ ] **T-50**: Extender `LaunchPipeline._build_snapshot()` para capturar `kit_ids` y `values` por target
+  - RN-21: el snapshot debe reflejar la config real usada por cada target
+- [ ] **T-51**: Actualizar `ExecutePipelineOperations._expand_targets()` para resolver kits por target
+  - Si el target tiene `kit_ids`, usar esos; si no, usar los globales del pipeline
+- [ ] **T-52**: Actualizar schemas Pydantic y endpoints para aceptar `kit_ids` y `values` por target
+- [ ] **T-53**: Migración Alembic para nueva columna JSON en `pipelines.targets`
+
+### Fase 10: Fases de Ejecución (dependencias entre targets)
+
+- [ ] **T-54**: Añadir `phase` opcional a `PipelineTarget`
+  - `PipelineTarget(server_id, kit_ids?, values?, phase?)`
+  - Phase es un entero (1, 2, 3...). Default: 1
+  - Los targets con phase=1 se ejecutan antes que los de phase=2
+  - Permite: "primero masters (phase=1), luego workers (phase=2)"
+- [ ] **T-55**: `ExecutePipelineOperations` ejecuta por fases secuenciales
+  - Fase 1: lanzar todos los targets con phase=1, esperar a que terminen
+  - Fase 2: lanzar todos los targets con phase=2, esperar a que terminen
+  - ...y así hasta la fase máxima
+  - Si una fase falla completamente, las siguientes no se ejecutan (mark_finished con los resultados parciales)
+
+### Fase 11: Reintentos y Eventos
+
+- [ ] **T-56**: Reintentar operaciones fallidas de una PipelineExecution
+  - `POST /api/v1/pipelines/{id}/executions/{exec_id}/retry`
+  - Crea una nueva PipelineExecution que solo lanza las operaciones que fallaron
+  - Reutiliza el snapshot de la ejecución original
+- [ ] **T-57**: Publicar eventos de dominio `PipelineExecutionCompleted`, `PipelineExecutionFailed`, `PipelineExecutionCancelled`
+  - Otros módulos pueden reaccionar (notificaciones, alertas, métricas)
+- [ ] **T-58**: Progreso en tiempo real — añadir campos `completed_count`, `failed_count`, `total_count` a `PipelineExecution`
+  - Evita tener que consultar las operaciones individuales para saber el progreso
+  - Se actualizan durante el polling en `ExecutePipelineOperations`
+
+### Fase 12: Snapshot de Kits
+
+- [ ] **T-59**: Capturar versión y hash del kit en el snapshot al lanzar
+  - Actualmente RN-21 captura `targets`, `kits` y `values` pero no la versión/contentido del kit
+  - Si un kit se modifica tras el lanzamiento, la ejecución usa la versión actual
+  - Solución: almacenar `kit_version` y `kit_last_commit_sha` en el snapshot por cada kit
+
+### Fase 13: Variables por Target
+
+- [ ] **T-60**: Soportar `values` por target (además de por kit)
+  - Permite: `--node-type=master` para targets del grupo masters, `--node-type=worker` para workers
+  - Los values por target se mergean con los globales del pipeline y los del kit
+
+### Dependencias v2
+
+```mermaid
+graph TD
+    T45[T-45: Cancelar ejecución] --> T46[T-46: Timeout efectivo]
+    T47[T-47: Ejecución paralela] --> T48[T-48: Límite concurrencia]
+    T49[T-49: Target con kit_ids] --> T50[T-50: Snapshot con kit_ids]
+    T50 --> T51[T-51: ExpandTargets con kit_ids]
+    T51 --> T52[T-52: Schemas y endpoints]
+    T52 --> T53[T-53: Migración Alembic]
+    T49 --> T54[T-54: Fases de ejecución]
+    T54 --> T55[T-55: Ejecución por fases]
+    T56[T-56: Reintentar ops fallidas] --> T57[T-57: Eventos de dominio]
+    T49 --> T60[T-60: Values por target]
+```
+
+### Estadísticas v2
+
+- **Total tareas v2**: 16 (T-45 a T-60)
+- **Fases**: 7 (7 a 13)
+- **Nuevos endpoints**: 2 (cancel, retry)
+- **Cambios de modelo**: PipelineTarget (kit_ids, values, phase)
+- **Nuevos commands**: CancelPipelineExecution, RetryPipelineExecution
+- **Nuevos eventos**: PipelineExecutionCompleted, PipelineExecutionFailed, PipelineExecutionCancelled

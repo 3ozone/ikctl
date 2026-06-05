@@ -103,3 +103,14 @@ class PipelineExecutionDetailResult:
     created_at: Optional[datetime]
     started_at: Optional[datetime]
     finished_at: Optional[datetime]
+
+
+@dataclass(frozen=True)
+class PipelineExecutionCancelDTO:
+    """DTO de salida para la cancelación de una ejecución de pipeline."""
+
+    execution_id: str
+    pipeline_id: str
+    user_id: str
+    status: str
+    finished_at: Optional[datetime]

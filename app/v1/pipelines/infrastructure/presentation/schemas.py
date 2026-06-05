@@ -24,6 +24,14 @@ class PipelineTargetRequest(BaseModel):
         examples=["550e8400-e29b-41d4-a716-446655440000"],
         description="ID del servidor o grupo destino",
     )
+    kit_ids: Optional[list[str]] = Field(
+        None,
+        description="IDs de los kits a ejecutar en este target. None = usar globales.",
+    )
+    values: Optional[dict] = Field(
+        None,
+        description="Variables de plantilla específicas de este target.",
+    )
 
 
 class PipelineKitConfigRequest(BaseModel):
@@ -123,6 +131,8 @@ class PipelineTargetResponse(BaseModel):
     """Target serializado en la respuesta de un pipeline."""
 
     server_id: str
+    kit_ids: Optional[list[str]]
+    values: Optional[dict]
 
 
 class PipelineKitConfigResponse(BaseModel):
@@ -242,3 +252,13 @@ class PipelineExecutionDetailResponse(BaseModel):
     finished_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
+
+
+class PipelineExecutionCancelResponse(BaseModel):
+    """Response para la cancelación de una ejecución de pipeline."""
+
+    execution_id: str
+    pipeline_id: str
+    user_id: str
+    status: str
+    finished_at: datetime

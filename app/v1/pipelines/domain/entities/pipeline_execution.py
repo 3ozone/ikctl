@@ -17,10 +17,11 @@ _FAILED_OPERATION_STATUSES = frozenset({"failed", "cancelled_unsafe", "cancelled
 class PipelineExecution:
     """Instancia concreta de una ejecución de pipeline.
 
-    Ciclo de vida:
+Ciclo de vida:
         pending → in_progress → completed   (todas ops OK)
                                  failed      (todas ops fallaron)
                                  partial     (mixto)
+                                 cancelled   (cancelada por el usuario o timeout)
 
     RN-20: estado agregado calculado a partir de los estados de las operaciones.
     RN-21: snapshot inmutable de targets+kits+values en el momento del lanzamiento.
@@ -62,6 +63,38 @@ class PipelineExecution:
             )
         aggregated = self._calculate_aggregated_status(operation_statuses)
         self.status = PipelineStatus(aggregated)
+        self.finished_at = datetime.now(timezone.utc)
+
+    def cancel(self) -> None:
+        """Transición in_progress → cancelled. Registra finished_at.
+
+        Raises:
+            PipelineExecutionNotCancellableError: si la ejecución no está en in_progress.
+        """
+        from app.v1.pipelines.domain.exceptions.pipeline_execution import (
+            PipelineExecutionNotCancellableError,
+        )
+
+        if self.status.value != "in_progress":
+            raise PipelineExecutionNotCancellableError(
+                f"No se puede cancelar una ejecución en estado '{self.status.value}'. "
+                f"Debe estar en estado 'in_progress'."
+            )
+        self.status = PipelineStatus("cancelled")
+        self.finished_at = datetime.now(timezone.utc)
+
+    def mark_timeout_failed(self) -> None:
+        """Transición in_progress → failed tras timeout. Registra finished_at.
+
+        Raises:
+            InvalidPipelineStatusError: si la ejecución no está en in_progress.
+        """
+        if self.status.value != "in_progress":
+            raise InvalidPipelineStatusError(
+                f"No se puede marcar como failed por timeout una ejecución en estado '{self.status.value}'. "
+                f"Debe estar en estado 'in_progress'."
+            )
+        self.status = PipelineStatus("failed")
         self.finished_at = datetime.now(timezone.utc)
 
     @staticmethod

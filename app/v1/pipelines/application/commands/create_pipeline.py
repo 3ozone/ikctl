@@ -81,7 +81,14 @@ class CreatePipeline:
             user_id=pipeline.user_id,
             name=pipeline.name,
             description=pipeline.description,
-            targets=tuple({"server_id": t.server_id} for t in pipeline.targets),
+            targets=tuple(
+                {
+                    "server_id": t.server_id,
+                    "kit_ids": list(t.kit_ids) if t.kit_ids is not None else None,
+                    "values": dict(t.values),
+                }
+                for t in pipeline.targets
+            ),
             kits=tuple(
                 {
                     "kit_id": k.kit_id,

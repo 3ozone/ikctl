@@ -230,3 +230,50 @@ graph TD
 
 > **Limitación conocida**: `SyncRepository.execute()` pasa `credential=None` a `clone_shallow` para repos privados.
 > Repos privados no funcionarán hasta que se añada `CredentialRepository` como dependencia del use case.
+
+---
+
+## v2.1.0 — Mejoras de Kits
+
+**Estado:** Pendiente
+
+> Mejoras identificadas tras la v2.0.0: snapshot de versión del kit para pipelines
+> y soporte para repositorios privados con credenciales.
+
+### Fase 7: Snapshot de Versión del Kit
+
+- [ ] **T-44**: Añadir campos `version` y `last_commit_sha` al snapshot de PipelineExecution
+  - Cuando un pipeline se lanza, el snapshot captura `kit_version` y `kit_last_commit_sha`
+  por cada kit, no solo el `kit_id`
+  - Permite saber exactamente qué versión del kit se ejecutó, incluso si el kit
+  se actualiza después
+- [ ] **T-45**: Añadir método `Kit.get_snapshot_data()` → devuelve `{kit_id, version, last_commit_sha}`
+  - Usado por `LaunchPipeline` al construir el snapshot (RN-21 extendido)
+  - Garantiza trazabilidad: ejecución histórica refleja la versión exacta usada
+
+### Fase 8: Repositorios Privados
+
+- [ ] **T-46**: Inyectar `CredentialRepository` en `SyncRepository` use case
+  - Actualmente `SyncRepository.execute()` pasa `credential=None`
+  - Buscar la credencial via `CredentialRepository.find_by_id_internal(credential_id)`
+  - Pasar la credencial real a `GitClient.clone_shallow()`
+  - Permite clonar repos privados con credenciales SSH y HTTPS
+- [ ] **T-47**: Tests de integración con repos privados (git_https y git_ssh)
+  - Verificar que el flujo completo funciona con credenciales reales
+
+### Dependencias v2
+
+```mermaid
+graph TD
+    T44[T-44: Kit snapshot data] --> T45[T-45: Kit.get_snapshot_data]
+    PipelinesModule["Pipelines T-59: Snapshot de kits"] --> T44
+    ServersModule["Módulo servers<br/>(CredentialRepository)"] --> T46
+    T46 --> T47[T-47: Tests repos privados]
+```
+
+### Estadísticas v2
+
+- **Total tareas v2**: 4 (T-44 a T-47)
+- **Fases**: 2 (7 a 8)
+- **Cambios de modelo**: Kit (método `get_snapshot_data`)
+- **Dependencias cruzadas**: pipelines T-59 depende de kits T-44

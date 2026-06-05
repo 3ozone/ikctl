@@ -22,6 +22,9 @@ class OperationReadAdapter(OperationsOperationRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._repo = SQLAlchemyOperationRepository(session)
 
+    async def find_by_id_no_ownership(self, operation_id: str) -> Optional[Operation]:
+        return await self._repo.find_by_id_no_ownership(operation_id)
+
     async def find_by_id_internal(self, operation_id: str) -> Optional[Operation]:
         return await self._repo.find_by_id_no_ownership(operation_id)
 

@@ -19,6 +19,7 @@ from app.v1.pipelines.application.commands.create_pipeline import CreatePipeline
 from app.v1.pipelines.application.commands.delete_pipeline import DeletePipeline
 from app.v1.pipelines.application.commands.launch_pipeline import LaunchPipeline
 from app.v1.pipelines.application.commands.update_pipeline import UpdatePipeline
+from app.v1.pipelines.application.commands.cancel_pipeline_execution import CancelPipelineExecution
 from app.v1.pipelines.application.dtos.pipeline_dtos import PipelineExecutionDetailResult
 from app.v1.pipelines.application.dtos.pipeline_dtos import PipelineExecutionResult as ExecutionResultDTO
 from app.v1.pipelines.application.dtos.pipeline_dtos import PipelineExecutionSummary, PipelineListResult, PipelineResult
@@ -29,6 +30,7 @@ from app.v1.pipelines.application.queries.list_pipelines import ListPipelines
 from app.v1.pipelines.domain.value_objects.pipeline_kit_config import PipelineKitConfig
 from app.v1.pipelines.domain.value_objects.pipeline_target import PipelineTarget
 from app.v1.pipelines.infrastructure.presentation.deps import (
+    get_cancel_pipeline_execution_uc,
     get_create_pipeline_uc,
     get_current_user_id,
     get_delete_pipeline_uc,
@@ -42,6 +44,7 @@ from app.v1.pipelines.infrastructure.presentation.deps import (
 from app.v1.pipelines.infrastructure.presentation.schemas import (
     CreatePipelineRequest,
     LaunchPipelineRequest,
+    PipelineExecutionCancelResponse,
     PipelineExecutionDetailResponse,
     PipelineExecutionListResponse,
     PipelineExecutionResponse,
@@ -72,7 +75,7 @@ def _to_pipeline_response(result: PipelineResult) -> PipelineResponse:
         user_id=result.user_id,
         name=result.name,
         description=result.description,
-        targets=[PipelineTargetResponse(server_id=t["server_id"]) for t in result.targets],
+        targets=[PipelineTargetResponse(server_id=t["server_id"], kit_ids=t.get("kit_ids"), values=t.get("values", {})) for t in result.targets],
         kits=[
             PipelineKitConfigResponse(kit_id=k["kit_id"], sudo=k.get("sudo"), debug_level=k.get("debug_level"), values=k.get("values", {}))
             for k in result.kits
@@ -108,7 +111,14 @@ async def create_pipeline(
     Raises:
         422: Si algún target es un servidor local (LocalServerInPipelineError).
     """
-    targets = [PipelineTarget(server_id=t.server_id) for t in body.targets]
+    targets = [
+        PipelineTarget(
+            server_id=t.server_id,
+            kit_ids=tuple(t.kit_ids) if t.kit_ids is not None else None,
+            values=t.values or {},
+        )
+        for t in body.targets
+    ]
     kits = [
         PipelineKitConfig(kit_id=k.kit_id, sudo=k.sudo, debug_level=k.debug_level, values=k.values or {})
         for k in body.kits
@@ -214,7 +224,18 @@ async def update_pipeline(
         409: Si el pipeline tiene ejecuciones activas.
         422: Si algún target es un servidor local.
     """
-    targets = [PipelineTarget(server_id=t.server_id) for t in body.targets] if body.targets else None
+    targets = (
+        [
+            PipelineTarget(
+                server_id=t.server_id,
+                kit_ids=tuple(t.kit_ids) if t.kit_ids is not None else None,
+                values=t.values or {},
+            )
+            for t in body.targets
+        ]
+        if body.targets
+        else None
+    )
     kits = (
         [PipelineKitConfig(kit_id=k.kit_id, sudo=k.sudo, debug_level=k.debug_level, values=k.values or {}) for k in body.kits]
         if body.kits
@@ -411,4 +432,49 @@ async def get_pipeline_execution_detail(
         created_at=result.created_at,
         started_at=result.started_at,
         finished_at=result.finished_at,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Cancel pipeline execution
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/api/v1/pipelines/{pipeline_id}/executions/{execution_id}/cancel",
+    response_model=PipelineExecutionCancelResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def cancel_pipeline_execution(
+    pipeline_id: str,
+    execution_id: str,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    use_case: Annotated[CancelPipelineExecution, Depends(get_cancel_pipeline_execution_uc)],
+) -> PipelineExecutionCancelResponse:
+    """Cancela una ejecución de pipeline en estado in_progress.
+
+    Returns:
+        200 PipelineExecutionCancelResponse con el estado actualizado.
+
+    Raises:
+        404: Si el pipeline no existe o no pertenece al usuario.
+        422: Si la ejecución no está en estado cancelable (pending o terminal).
+    """
+    result = await use_case.execute(
+        user_id=user_id,
+        pipeline_id=pipeline_id,
+        execution_id=execution_id,
+    )
+    logger.info(
+        "pipeline_execution_cancelled",
+        user_id=user_id,
+        pipeline_id=pipeline_id,
+        execution_id=execution_id,
+    )
+    return PipelineExecutionCancelResponse(
+        execution_id=result.execution_id,
+        pipeline_id=result.pipeline_id,
+        user_id=result.user_id,
+        status=result.status,
+        finished_at=result.finished_at or datetime.now(timezone.utc),
     )

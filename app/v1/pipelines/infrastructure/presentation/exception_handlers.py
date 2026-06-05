@@ -3,6 +3,7 @@
 Jerarquía y códigos HTTP:
 - PipelineNotFoundError            → 404 Not Found
 - PipelineExecutionNotFoundError   → 404 Not Found
+- PipelineExecutionNotCancellableError → 422 Unprocessable
 - PipelineInProgressError          → 409 Conflict
 - LocalServerInPipelineError       → 422 Unprocessable
 - PipelineNotLaunchableError       → 422 Unprocessable
@@ -20,6 +21,7 @@ from app.v1.pipelines.application.exceptions import (
 from app.v1.pipelines.domain.exceptions.pipeline import PipelineNotFoundError
 from app.v1.pipelines.domain.exceptions.pipeline_execution import (
     PipelineExecutionNotFoundError,
+    PipelineExecutionNotCancellableError,
 )
 from app.v1.shared.infrastructure.logger import get_logger
 
@@ -103,6 +105,20 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=422,
             content={"detail": str(exc) or "El pipeline no puede lanzarse"},
+        )
+
+    @app.exception_handler(PipelineExecutionNotCancellableError)
+    async def pipeline_execution_not_cancellable_handler(
+        request: Request, exc: PipelineExecutionNotCancellableError
+    ) -> JSONResponse:
+        logger.warning(
+            "pipeline_execution_not_cancellable",
+            path=request.url.path,
+            error=str(exc),
+        )
+        return JSONResponse(
+            status_code=422,
+            content={"detail": str(exc) or "La ejecución no puede cancelarse"},
         )
 
     # ── 422 Unprocessable (catch-all) ─────────────────────────────────────────

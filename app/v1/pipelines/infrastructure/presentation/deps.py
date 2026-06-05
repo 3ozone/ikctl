@@ -18,12 +18,14 @@ from app.v1.operations.infrastructure.adapters.kit_read_adapter import (
 )
 from app.v1.operations.infrastructure.adapters.fastapi_task_queue import FastAPITaskQueue
 from app.v1.operations.application.commands.launch_operation import LaunchOperation
+from app.v1.operations.application.commands.cancel_operation import CancelOperation
 from app.v1.operations.infrastructure.repositories.operation_repository import (
     SQLAlchemyOperationRepository,
 )
 from app.v1.pipelines.application.commands.create_pipeline import CreatePipeline
 from app.v1.pipelines.application.commands.delete_pipeline import DeletePipeline
 from app.v1.pipelines.application.commands.launch_pipeline import LaunchPipeline
+from app.v1.pipelines.application.commands.cancel_pipeline_execution import CancelPipelineExecution
 from app.v1.pipelines.application.commands.update_pipeline import UpdatePipeline
 from app.v1.pipelines.application.queries.get_pipeline import GetPipeline
 from app.v1.pipelines.application.queries.get_pipeline_execution_detail import (
@@ -32,6 +34,7 @@ from app.v1.pipelines.application.queries.get_pipeline_execution_detail import (
 from app.v1.pipelines.application.queries.get_pipeline_executions import GetPipelineExecutions
 from app.v1.pipelines.application.queries.list_pipelines import ListPipelines
 from app.v1.pipelines.infrastructure.adapters.kit_read_adapter import KitReadAdapter
+from app.v1.pipelines.infrastructure.adapters.operation_cancel_adapter import OperationCancelAdapter
 from app.v1.pipelines.infrastructure.adapters.operation_launcher_adapter import (
     OperationLauncherAdapter,
 )
@@ -190,15 +193,10 @@ def get_create_pipeline_uc(
 
 def get_update_pipeline_uc(
     pipeline_repo: Annotated[SQLAlchemyPipelineRepository, Depends(get_pipeline_repository)],
-    execution_repo: Annotated[
-        SQLAlchemyPipelineExecutionRepository,
-        Depends(get_pipeline_execution_repository),
-    ],
     server_repo: Annotated[ServerReadAdapter, Depends(get_server_read_adapter)],
 ) -> UpdatePipeline:
     return UpdatePipeline(
         pipeline_repository=pipeline_repo,
-        execution_repository=execution_repo,
         server_repository=server_repo,
     )
 
@@ -227,6 +225,33 @@ def get_launch_pipeline_uc(
         kit_repository=kit_repo,
         task_queue=task_queue,
         execute_fn=execute_fn,
+    )
+
+
+def get_cancel_pipeline_execution_uc(
+    pipeline_repo: Annotated[SQLAlchemyPipelineRepository, Depends(get_pipeline_repository)],
+    execution_repo: Annotated[
+        SQLAlchemyPipelineExecutionRepository,
+        Depends(get_pipeline_execution_repository),
+    ],
+    operation_read_adapter: Annotated[OperationReadAdapter, Depends(get_operation_read_adapter)],
+    operation_repo_scoped: Annotated[
+        SQLAlchemyOperationRepository, Depends(get_operation_repository_scoped)
+    ],
+    event_bus=Depends(get_event_bus),
+) -> CancelPipelineExecution:
+    cancel_adapter = OperationCancelAdapter(
+        cancel_operation=CancelOperation(
+            operation_repository=operation_repo_scoped,
+            event_bus=event_bus,
+        )
+    )
+    return CancelPipelineExecution(
+        pipeline_repository=pipeline_repo,
+        execution_repository=execution_repo,
+        operation_repository=operation_read_adapter,
+        operation_cancel_port=cancel_adapter,
+        event_bus=event_bus,
     )
 
 
@@ -261,6 +286,7 @@ def get_get_pipeline_executions_uc(
 
 
 def get_get_pipeline_execution_detail_uc(
+    pipeline_repo: Annotated[SQLAlchemyPipelineRepository, Depends(get_pipeline_repository)],
     execution_repo: Annotated[
         SQLAlchemyPipelineExecutionRepository,
         Depends(get_pipeline_execution_repository),
@@ -268,6 +294,7 @@ def get_get_pipeline_execution_detail_uc(
     operation_read_adapter: Annotated[OperationReadAdapter, Depends(get_operation_read_adapter)],
 ) -> GetPipelineExecutionDetail:
     return GetPipelineExecutionDetail(
+        pipeline_repository=pipeline_repo,
         execution_repository=execution_repo,
         operation_repository=operation_read_adapter,
     )
